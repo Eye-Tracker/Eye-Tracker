@@ -1,0 +1,3 @@
+/home/claudio/Projects/Eye Tracker/Framework/build/CMakeFiles/edit_cache.dir
+/home/claudio/Projects/Eye Tracker/Framework/build/CMakeFiles/rebuild_cache.dir
+/home/claudio/Projects/Eye Tracker/Framework/build/CMakeFiles/framework.dir

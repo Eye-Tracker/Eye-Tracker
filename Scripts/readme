@@ -1,0 +1,10 @@
+Severel GStreamer scripts to invoke GStreamer pipelines for streaming camera images (using v4l driver) to an remote host system (via UDP at port 5200). The scripts so far supporting H264 and MotionJPEG compression for streaming.
+
+Usage of scripts: <scriptname> <IP-of-host> [optional: GStreamer Flags] 
+
+To use the scripts some GStreamer Packages need to be installed. For Raspbian/Ubunut (or maybe other Debians) do: 
+sudo apt-get install gstreamer1.0-tools \
+  gstreamer1.0-plugins-base \
+  gstreamer1.0-plugins-good \
+  gstreamer1.0-plugins-bad  \
+  gstreamer1.0-plugins-ugly
