@@ -5,8 +5,8 @@
 __kernel void non_max_suppression_kernel(__global uchar *data,
                                         __global uchar *out,
                                         __global uchar *theta,
-                                                size_t rows,
-                                                size_t cols) {
+                                                uint rows,
+                                                uint cols) {
     size_t row = get_global_id(0);
     size_t col = get_global_id(1);
 
@@ -69,5 +69,5 @@ __kernel void non_max_suppression_kernel(__global uchar *data,
         default:
             out[POS] = data[POS];
             break;
-    } 
+    }
 }

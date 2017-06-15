@@ -1,8 +1,10 @@
 mod image_loader;
-mod canny;
+mod opencl;
 
 fn main() {
     let img = image_loader::open_image("eye.jpg");
 
-    canny::info::print_info();
+    //opencl::info::print_info();
+
+    let img_proc = opencl::imgproc::ImgPrc::new(false);
 }

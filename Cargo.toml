@@ -6,3 +6,4 @@ authors = ["Mark Boss <markboss@mailbox.org>"]
 [dependencies]
 image = "*"
 ocl = "0.14.1"
+find_folder = "0.3.0"

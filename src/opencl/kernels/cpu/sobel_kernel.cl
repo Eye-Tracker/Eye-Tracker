@@ -14,8 +14,8 @@ __constant int soby[3][3] = { {-1,-2,-1},
 __kernel void sobel_kernel(__global uchar *data,
                            __global uchar *out,
                            __global uchar *theta,
-                                    size_t rows,
-                                    size_t cols) {
+                                    uint rows,
+                                    uint cols) {
     // collect sums separately
     const float PI = 3.14159265;
     float sumx = 0, sumy = 0, angle = 0;
@@ -38,13 +38,10 @@ __kernel void sobel_kernel(__global uchar *data,
     // direction angle theta in radians
     angle = atan2(sumy,sumx);
 
-    // if angle is negative, shift the range to (0, 2PI)
+    
     if (angle < 0)
-    {
         angle = fmod((angle + 2*PI),(2*PI));
-    }
 
-    // Round the angle to one of four possibilities
     if (angle <= PI/8) {
         theta[pos] = 0;
     } else if (angle <= 3*PI/8) {
@@ -61,7 +58,7 @@ __kernel void sobel_kernel(__global uchar *data,
         theta[pos] = 90;
     } else if (angle <= 15*PI/8) {
         theta[pos] = 135;
-    } else // (angle <= 16*PI/8) {
+    } else { // (angle <= 16*PI/8) 
         theta[pos] = 0;
     }
 }

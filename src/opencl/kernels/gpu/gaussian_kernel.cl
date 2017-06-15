@@ -9,8 +9,8 @@ __constant float gauss[3][3] = { {0.0625, 0.125, 0.0625},
 // out: image output (8Bit 1Channel)
 __kernel void gaussian_kernel(__global uchar *data,
                               __global uchar *out,
-                                       size_t rows,
-                                       size_t cols) {
+                                       uint rows,
+                                       uint cols) {
     int sum = 0;
     size_t g_row = get_global_id(0);
     size_t g_col = get_global_id(1);

@@ -3,32 +3,26 @@
 // out: image output (8Bit 1Channel)
 __kernel void hysteresis_kernel(__global uchar *data,
                                 __global uchar *out,
-                                        size_t rows,
-                                        size_t cols)
-{
-	// Establish our high and low thresholds as floats
+                                        uint rows,
+                                        uint cols) {
+	// Set the thresholds
 	float lowThresh = 10;
 	float highThresh = 70;
 
-	// These variables are offset by one to avoid seg. fault errors
-    // As such, this kernel ignores the outside ring of pixels
 	size_t row = get_global_id(0);
 	size_t col = get_global_id(1);
 	size_t pos = row * cols + col;
 
-    const uchar EDGE = 255;
-
-    uchar magnitude = data[pos];
+    const size_t EDGE = 255;
     
-    if (magnitude >= highThresh)
+    if (data[pos] >= highThresh)
         out[pos] = EDGE;
-    else if (magnitude <= lowThresh)
+    else if (data[pos] <= lowThresh)
         out[pos] = 0;
-    else
-    {
+    else {
         float med = (highThresh + lowThresh)/2;
         
-        if (magnitude >= med)
+        if (data[pos] >= med)
             out[pos] = EDGE;
         else
             out[pos] = 0;

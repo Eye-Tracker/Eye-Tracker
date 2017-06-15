@@ -14,8 +14,8 @@ __constant int soby[3][3] = { {-1,-2,-1},
 __kernel void sobel_kernel(__global uchar *data,
                            __global uchar *out,
                            __global uchar *theta,
-                                    size_t rows,
-                                    size_t cols)
+                                    uint rows,
+                                    uint cols)
 {
     // collect sums separately
     const float PI = 3.14159265;
