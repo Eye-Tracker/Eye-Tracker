@@ -1,0 +1,8 @@
+[package]
+name = "ocl-canny-rs"
+version = "0.0.1"
+authors = ["Mark Boss <markboss@mailbox.org>"]
+
+[dependencies]
+image = "*"
+ocl = "0.14.1"
