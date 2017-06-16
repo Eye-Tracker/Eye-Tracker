@@ -6,7 +6,8 @@ use image_loader::image::GenericImage;
 fn main() {
     let img = image_loader::open_image("eye.jpg");
 
-    //opencl::info::print_info();
+    let res_img = opencl::imgproc::ImgPrc::new(true)
+        .process_image(img.raw_pixels(), img.dimensions());
 
-    let img_proc = opencl::imgproc::ImgPrc::new(false).process_image(img.raw_pixels(), img.dimensions());
+    image_loader::save_image(res_img, img.width(), img.height());
 }

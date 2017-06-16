@@ -1,4 +1,4 @@
-extern crate image;
+pub extern crate image;
 
 use std::path::Path;
 
@@ -12,4 +12,8 @@ pub fn open_image(file: &str) -> DynamicImage {
     println!("{:?}", grayscaled.color());
 
     grayscaled
+}
+
+pub fn save_image(data: Vec<u8>, dimx: u32, dimy: u32) {
+    image::save_buffer(&Path::new("output.jpg"), &data, dimx, dimy, image::Gray(8)).unwrap();
 }
