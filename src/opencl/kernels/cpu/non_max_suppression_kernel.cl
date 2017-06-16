@@ -10,6 +10,10 @@ __kernel void non_max_suppression_kernel(__global uchar *data,
     size_t row = get_global_id(0);
     size_t col = get_global_id(1);
 
+    if (row == 0 || row == rows -1 || col == 0 || col == cols - 1) {
+        return;
+    }
+
     // Used for matrix addressing
     const size_t POS = row * cols + col;
     const size_t N = (row - 1) * cols + col;

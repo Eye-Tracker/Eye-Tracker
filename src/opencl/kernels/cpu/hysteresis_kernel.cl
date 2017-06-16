@@ -13,6 +13,10 @@ __kernel void hysteresis_kernel(__global uchar *data,
 	size_t col = get_global_id(1);
 	size_t pos = row * cols + col;
 
+    if (row == 0 || row == rows -1 || col == 0 || col == cols - 1) {
+        return;
+    }
+
     const size_t EDGE = 255;
     
     if (data[pos] >= highThresh)
