@@ -13,10 +13,6 @@ __kernel void non_max_suppression_kernel(__global uchar *data,
     size_t l_col = get_local_id(1) + 1;
     
     size_t pos = g_row * cols + g_col;
-
-    if (g_row == 0 || g_row == rows -1 || g_col == 0 || g_col == cols - 1) {
-        return;
-    }
     
     __local int l_data[18][18];
 

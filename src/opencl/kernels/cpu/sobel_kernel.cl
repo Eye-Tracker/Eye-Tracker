@@ -22,10 +22,6 @@ __kernel void sobel_kernel(__global uchar *data,
     size_t row = get_global_id(0);
     size_t col = get_global_id(1);
     size_t pos = row * cols + col;
-
-    if (row == 0 || row == rows -1 || col == 0 || col == cols - 1) {
-        return;
-    }
     
     for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
