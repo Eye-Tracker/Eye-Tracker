@@ -1,10 +1,11 @@
 extern crate ocl;
 extern crate find_folder;
+extern crate time;
 
 use self::ocl::{core, util, Device, Context, Queue, Kernel, Program, MemFlags, Buffer};
-use self::ocl::builders::ProgramBuilder;
 use self::ocl::flags::DeviceType;
 use self::find_folder::Search;
+use self::time::PreciseTime;
 use std::mem;
 
 pub fn new(gpu: bool, dim: (u32, u32)) -> Canny {
@@ -72,8 +73,6 @@ impl Canny {
 
     pub fn new(pqs: ProcessingProQues, dim: (u32, u32)) -> Canny {
         let kdim = dim.0.checked_mul(dim.1).unwrap().checked_mul(mem::size_of::<u8>() as u32).unwrap();
-        
-        println!("Buffer Size: {}" , kdim);
 
         let next_buffer = Buffer::builder()
             .queue(pqs.queue.clone())
@@ -118,8 +117,6 @@ impl Canny {
     }
 
     fn execute_gaussian(&mut self) {
-        println!("Gauss: Next buffer {} - Prev buffer {}", self.buffer_index, self.buffer_index ^ 1);
-
         let kernel = Kernel::new("gaussian_kernel", &self.proques.gauss).unwrap()
             .queue(self.proques.queue.clone())
             .gws([self.dim.0, self.dim.1])
@@ -129,16 +126,12 @@ impl Canny {
             .arg_scl(self.dim.0)
             .arg_scl(self.dim.1);
 
-        println!("Gauss: Kernel global work size: {:?}", kernel.get_gws());
-
         kernel.enq().unwrap();
 
         self.advance_buffer();
     }
 
     fn execute_sobel(&mut self) {
-        println!("Sobel: Next buffer {} - Prev buffer {}", self.buffer_index, self.buffer_index ^ 1);
-
         let kernel = Kernel::new("sobel_kernel", &self.proques.sobel).unwrap()
             .queue(self.proques.queue.clone())
             .gws([self.dim.0, self.dim.1])
@@ -149,16 +142,12 @@ impl Canny {
             .arg_scl(self.dim.0)
             .arg_scl(self.dim.1);
 
-        println!("Sobel: Kernel global work size: {:?}", kernel.get_gws());
-
         kernel.enq().unwrap();
 
         self.advance_buffer();
     }
 
     fn execute_nms(&mut self) {
-        println!("NMS: Next buffer {} - Prev buffer {}", self.buffer_index, self.buffer_index ^ 1);
-
         let kernel = Kernel::new("non_max_suppression_kernel", &self.proques.nms).unwrap()
             .queue(self.proques.queue.clone())
             .gws([self.dim.0 , self.dim.1])
@@ -169,16 +158,12 @@ impl Canny {
             .arg_scl(self.dim.0)
             .arg_scl(self.dim.1);
 
-        println!("NMS: Kernel global work size: {:?}", kernel.get_gws());
-
         kernel.enq().unwrap();
 
         self.advance_buffer();
     }
 
     fn execute_hyst(&mut self) {
-        println!("Hysteresis: Next buffer {} - Prev buffer {}", self.buffer_index, self.buffer_index ^ 1);
-
         let kernel = Kernel::new("hysteresis_kernel", &self.proques.hyst).unwrap()
             .queue(self.proques.queue.clone())
             .gws([self.dim.0, self.dim.1])
@@ -187,8 +172,6 @@ impl Canny {
             .arg_scl(self.dim.0)
             .arg_scl(self.dim.1);
 
-        println!("Hysteresis: Kernel global work size: {:?}", kernel.get_gws());
-
         kernel.enq().unwrap();
 
         self.advance_buffer();
@@ -196,11 +179,12 @@ impl Canny {
 
     pub fn execute_edge_detection(&mut self, data: Vec<u8>) -> Vec<u8> {
         //Upload to old buffer
+
+        let start_transfer = PreciseTime::now();
+
         self.prev_buffer().cmd().write(&data).enq().unwrap();
 
-        println!("Beginning: Next buffer {} - Prev buffer {}", self.buffer_index, self.buffer_index ^ 1);
-
-        //self.execute_test();
+        let start_processing = PreciseTime::now();
 
         self.execute_gaussian();
 
@@ -210,10 +194,18 @@ impl Canny {
 
         self.execute_hyst();
 
-        println!("End: Next buffer {} - Prev buffer {}", self.buffer_index, self.buffer_index ^ 1);
+        let end_processing = PreciseTime::now();
 
         let mut res = vec![0u8; (self.dim.0 * self.dim.1) as usize]; //pretty unsafe
         self.prev_buffer().read(&mut res).enq().unwrap();
+
+        let end = PreciseTime::now();
+
+        println!("Done for an {} x {} image.", self.dim.0, self.dim.1);
+        println!("Took {} seconds for transfer to GPU.", start_transfer.to(start_processing));
+        println!("Executed canny edge detection in {} seconds.", start_processing.to(end_processing));
+        println!("And took {} seconds to transfer back to CPU.", end_processing.to(end));
+        println!("Total: {} seconds.", start_transfer.to(end));
 
         res
     }
