@@ -14,58 +14,29 @@ __constant int soby[3][3] = { {-1,-2,-1},
 __kernel void sobel_kernel(__global uchar *data,
                            __global uchar *out,
                            __global uchar *theta,
-                                    uint rows,
-                                    uint cols)
+                                    uint width,
+                                    uint height)
 {
     // collect sums separately
     const float PI = 3.14159265;
-    size_t g_row = get_global_id(0);
-    size_t g_col = get_global_id(1);
-    size_t l_row = get_local_id(0) + 1;
-    size_t l_col = get_local_id(1) + 1;
-    
-    size_t pos = g_row * cols + g_col;
-    
-    __local int l_data[18][18];
-
-    // copy to local
-    l_data[l_row][l_col] = data[pos];
-
-    if (l_row == 1) {                           // top most row
-        l_data[0][l_col] = data[pos-cols];
-        if (l_col == 1)                         // top left
-            l_data[0][0] = data[pos-cols-1];
-
-        else if (l_col == 16)                   // top right
-            l_data[0][17] = data[pos-cols+1];
-    } else if (l_row == 16) {                   // bottom most row
-        l_data[17][l_col] = data[pos+cols];
-        if (l_col == 1)                         // bottom left
-            l_data[17][0] = data[pos+cols-1];
-        
-        else if (l_col == 16)                   // bottom right
-            l_data[17][17] = data[pos+cols+1];
-    }
-
-    if (l_col == 1)                             // left
-        l_data[l_row][0] = data[pos-1];
-    else if (l_col == 16)                       // right
-        l_data[l_row][17] = data[pos+1];
-
-    barrier(CLK_LOCAL_MEM_FENCE);
+    size_t xIndex = get_global_id(0);
+    size_t yIndex = get_global_id(1);
 
     float sumx = 0, sumy = 0, angle = 0;
-    for (int i = 0; i < 3; i++)
-    {
-        for (int j = 0; j < 3; j++)
-        {
-            sumx += sobx[i][j] * l_data[i+l_row-1][j+l_col-1];
-            sumy += soby[i][j] * l_data[i+l_row-1][j+l_col-1];
+    if((xIndex < width - 1) && (xIndex > 0) &&
+        (yIndex < height - 1) && (yIndex > 0)) {
+        for (int x = 0; x < 3; x++) {
+            size_t curX = xIndex - x - 1;
+            for (int y = 0; y < 3; y++) {
+                size_t curY = yIndex - y - 1;
+                sumx += sobx[x][y] * data[curY * width + curX];
+                sumy += soby[x][y] * data[curY * width + curX];
+            }
         }
     }
 
     // Output is now square root of their square
-    out[pos] = min(255,max(0, (int)hypot(sumx,sumy) ));
+    out[yIndex * width + xIndex] = min(255,max(0, (int)hypot(sumx,sumy) ));
 
     // direction angle theta in radians
     angle = atan2(sumy,sumx);
@@ -76,5 +47,5 @@ __kernel void sobel_kernel(__global uchar *data,
     }
 
     // Round the angle to one of four possibilities
-    theta[pos] = ((int)(degrees(angle * (PI/8) + PI/8-0.0001) / 45) * 45) % 180;
+    theta[yIndex * width + xIndex] = ((int)(degrees(angle * (PI/8) + PI/8-0.0001) / 45) * 45) % 180;
 }

@@ -2,56 +2,31 @@ __constant float gauss[3][3] = { {0.0625, 0.125, 0.0625},
                                 {0.1250, 0.250, 0.1250},
                                 {0.0625, 0.125, 0.0625} };
 
-#define L_SIZE 16
+#define BLOCK_DIM 16
 
 // Gaussian Kernel
 // data: image input (8Bit 1Channel)
 // out: image output (8Bit 1Channel)
 __kernel void gaussian_kernel(__global uchar *data,
                               __global uchar *out,
-                                       uint rows,
-                                       uint cols) {
+                                       uint width,
+                                       uint height) {
     int sum = 0;
-    size_t g_row = get_global_id(0);
-    size_t g_col = get_global_id(1);
-    size_t l_row = get_local_id(0) + 1;
-    size_t l_col = get_local_id(1) + 1;
-    
-    size_t pos = g_row * cols + g_col;
-    
-    __local int l_data[L_SIZE+2][L_SIZE+2];
+    size_t xIndex = get_global_id(0);
+    size_t yIndex = get_global_id(1);
 
-    // copy to local
-    l_data[l_row][l_col] = data[pos];
-   
-    if (l_row == 1) {                                   // top most row
-        l_data[0][l_col] = data[pos-cols];
-        if (l_col == 1)                                 // top left
-            l_data[0][0] = data[pos-cols-1];
+    if((xIndex < width - 1) && (xIndex > 0) &&
+        (yIndex < height - 1) && (yIndex > 0)) {
+        for (int x = 0; x < 3; x++) {
+            size_t curX = xIndex - x - 1;
+            for (int y = 0; y < 3; y++) {
+                size_t curY = yIndex - y - 1;
+                sum += gauss[y][x] * data[curY * width + curX];
+            }
+        }
 
-        else if (l_col == L_SIZE)                       // top right
-            l_data[0][L_SIZE+1] = data[pos-cols+1];
-    } else if (l_row == L_SIZE) {                       // bottom most row
-        l_data[L_SIZE+1][l_col] = data[pos+cols];
-        if (l_col == 1)                                 // bottom left
-            l_data[L_SIZE+1][0] = data[pos+cols-1];
-
-        else if (l_col == L_SIZE)                       // bottom right
-            l_data[L_SIZE+1][L_SIZE+1] = data[pos+cols+1];
+        out[yIndex * width + xIndex] = min(255,max(0,sum));
     }
-
-    if (l_col == 1)
-        l_data[l_row][0] = data[pos-1];
-    else if (l_col == L_SIZE)
-        l_data[l_row][L_SIZE+1] = data[pos+1];
-
-    barrier(CLK_LOCAL_MEM_FENCE);
-
-    for (int i = 0; i < 3; i++)
-        for (int j = 0; j < 3; j++)
-            sum += gauss[i][j] * l_data[i+l_row-1][j+l_col-1];
-
-    out[pos] = min(255,max(0,sum));
 
     return;
 }

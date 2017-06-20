@@ -18,7 +18,7 @@ pub fn new(gpu: bool, dim: (u32, u32)) -> Canny {
     let hyst_src_file = path.join(cpu_or_gpu.to_string() + "hysteresis_kernel.cl");
     let non_max_supp_src_file = path.join(cpu_or_gpu.to_string() + "non_max_suppression_kernel.cl");
     let sobel_src_file = path.join(cpu_or_gpu.to_string() + "sobel_kernel.cl");
-    
+
     let context = Context::builder().devices(Device::specifier().type_flags(dtype).first()).build().unwrap();
     let device = context.devices()[0];
 
@@ -32,10 +32,10 @@ pub fn new(gpu: bool, dim: (u32, u32)) -> Canny {
     let sobel = Program::builder().src_file(sobel_src_file).build(&context).unwrap();
 
     let pqs = ProcessingProQues {
-        gauss_pq: gauss,
-        hyst_pq: hyst,
-        nms_pq: nms,
-        sobel_pq: sobel,
+        gauss: gauss,
+        hyst: hyst,
+        nms: nms,
+        sobel: sobel,
         queue: queue,
         lws: workgroup_size,
     };
@@ -51,10 +51,10 @@ fn calculate_dimensions(dim: (u32, u32), workgroup_size: u32) -> (u32, u32) {
 }
 
 pub struct ProcessingProQues {
-    gauss_pq: Program,
-    hyst_pq: Program,
-    nms_pq: Program,
-    sobel_pq: Program,
+    gauss: Program,
+    hyst: Program,
+    nms: Program,
+    sobel: Program,
     queue: Queue,
     lws: u32,
 }
@@ -120,11 +120,10 @@ impl Canny {
     fn execute_gaussian(&mut self) {
         println!("Gauss: Next buffer {} - Prev buffer {}", self.buffer_index, self.buffer_index ^ 1);
 
-        let kernel = Kernel::new("gaussian_kernel", &self.proques.gauss_pq).unwrap()
+        let kernel = Kernel::new("gaussian_kernel", &self.proques.gauss).unwrap()
             .queue(self.proques.queue.clone())
-            .gwo([1, 1])
-            .gws([self.dim.0 - 2, self.dim.1 - 2])
-            .lws([self.proques.lws, self.proques.lws])
+            .gws([self.dim.0, self.dim.1])
+            //.lws([self.proques.lws, self.proques.lws])
             .arg_buf(self.prev_buffer())
             .arg_buf(self.next_buffer())
             .arg_scl(self.dim.0)
@@ -140,14 +139,13 @@ impl Canny {
     fn execute_sobel(&mut self) {
         println!("Sobel: Next buffer {} - Prev buffer {}", self.buffer_index, self.buffer_index ^ 1);
 
-        let kernel = Kernel::new("sobel_kernel", &self.proques.sobel_pq).unwrap()
+        let kernel = Kernel::new("sobel_kernel", &self.proques.sobel).unwrap()
             .queue(self.proques.queue.clone())
-            .gwo([1, 1])
-            .gws([self.dim.0 - 2, self.dim.1 - 2])
-            .lws([self.proques.lws, self.proques.lws])
-            .arg_buf_named("data", Some(self.prev_buffer()))
-            .arg_buf_named("out", Some(self.next_buffer()))
-            .arg_buf_named("theta", Some(&self.theta_buffer))
+            .gws([self.dim.0, self.dim.1])
+           // .lws([self.proques.lws, self.proques.lws])
+            .arg_buf(self.prev_buffer())
+            .arg_buf(self.next_buffer())
+            .arg_buf(&self.theta_buffer)
             .arg_scl(self.dim.0)
             .arg_scl(self.dim.1);
 
@@ -161,14 +159,13 @@ impl Canny {
     fn execute_nms(&mut self) {
         println!("NMS: Next buffer {} - Prev buffer {}", self.buffer_index, self.buffer_index ^ 1);
 
-        let kernel = Kernel::new("non_max_suppression_kernel", &self.proques.nms_pq).unwrap()
+        let kernel = Kernel::new("non_max_suppression_kernel", &self.proques.nms).unwrap()
             .queue(self.proques.queue.clone())
-            .gwo([1, 1])
-            .gws([self.dim.0 - 2, self.dim.1 - 2])
-            .lws([self.proques.lws, self.proques.lws])
-            .arg_buf_named("data", Some(self.prev_buffer()))
-            .arg_buf_named("out", Some(self.next_buffer()))
-            .arg_buf_named("theta", Some(&self.theta_buffer))
+            .gws([self.dim.0 , self.dim.1])
+            //.lws([self.proques.lws, self.proques.lws])
+            .arg_buf(self.prev_buffer())
+            .arg_buf(self.next_buffer())
+            .arg_buf(&self.theta_buffer)
             .arg_scl(self.dim.0)
             .arg_scl(self.dim.1);
 
@@ -182,13 +179,11 @@ impl Canny {
     fn execute_hyst(&mut self) {
         println!("Hysteresis: Next buffer {} - Prev buffer {}", self.buffer_index, self.buffer_index ^ 1);
 
-        let kernel = Kernel::new("hysteresis_kernel", &self.proques.hyst_pq).unwrap()
+        let kernel = Kernel::new("hysteresis_kernel", &self.proques.hyst).unwrap()
             .queue(self.proques.queue.clone())
-            .gwo([1, 1])
-            .gws([self.dim.0 - 2, self.dim.1 - 2])
-            .lws([self.proques.lws, self.proques.lws])
-            .arg_buf_named("data", Some(self.prev_buffer()))
-            .arg_buf_named("out", Some(self.next_buffer()))
+            .gws([self.dim.0, self.dim.1])
+            .arg_buf(self.prev_buffer())
+            .arg_buf(self.next_buffer())
             .arg_scl(self.dim.0)
             .arg_scl(self.dim.1);
 
@@ -206,13 +201,14 @@ impl Canny {
         println!("Beginning: Next buffer {} - Prev buffer {}", self.buffer_index, self.buffer_index ^ 1);
 
         //self.execute_test();
+
         self.execute_gaussian();
 
-        //self.execute_sobel();
+        self.execute_sobel();
 
-       // self.execute_nms();
+        self.execute_nms();
 
-       // self.execute_hyst();
+        self.execute_hyst();
 
         println!("End: Next buffer {} - Prev buffer {}", self.buffer_index, self.buffer_index ^ 1);
 
