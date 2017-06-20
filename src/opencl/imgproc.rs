@@ -2,7 +2,7 @@ extern crate ocl;
 extern crate find_folder;
 extern crate time;
 
-use self::ocl::{core, util, Device, Context, Queue, Kernel, Program, MemFlags, Buffer};
+use self::ocl::{Device, Context, Queue, Kernel, Program, MemFlags, Buffer};
 use self::ocl::flags::DeviceType;
 use self::find_folder::Search;
 use self::time::PreciseTime;

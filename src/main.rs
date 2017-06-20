@@ -9,7 +9,6 @@ fn main() {
 
     let mut processor = opencl::imgproc::new(true, img.dimensions());
 
-    let old_dim = img.dimensions();
     let new_dim = processor.get_desired_size();
 
     let cropped = image_loader::crop_image(&mut img, processor.get_desired_size());
