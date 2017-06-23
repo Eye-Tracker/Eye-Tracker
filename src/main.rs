@@ -16,8 +16,6 @@ use streamer::Stream;
 use piston_window::{PistonWindow, Texture, WindowSettings, TextureSettings, clear};
 
 fn main() {
-    //let mut img = image_loader::open_image("eye.jpg");
-
     let window: PistonWindow =
         WindowSettings::new("Eye Detection", [640, 480])
         .exit_on_esc(true)
@@ -30,16 +28,22 @@ fn main() {
     let dim = streamer.get_resolution();
     let stream_receiver = streamer.fetch_images();
 
+    let mut processor = opencl::imgproc::new(true, dim);
+
     for e in window {
         if let Ok(frame) = stream_receiver.try_recv() {
             println!("Received frame");
-            let imgBuf = ImageBuffer::from_raw(dim.0, dim.1, frame).unwrap();
-            let imgBufGray = DynamicImage::ImageLuma8(imgBuf).to_rgba();
+            let img_buf = ImageBuffer::from_raw(dim.0, dim.1, frame).unwrap();
+            let res_raw = processor.execute_edge_detection(img_buf.raw_pixels()));
+
+            let res_buf = ImageBuffer::from_raw(dim.0, dim.1, res_raw).unwrap();
+            let res_img = DynamicImage::ImageLuma8(res_buf).to_rgba();
+
             if let Some(mut t) = tex {
-                t.update(&mut *e.encoder.borrow_mut(), &imgBufGray).unwrap();
+                t.update(&mut *e.encoder.borrow_mut(), &res_img).unwrap();
                 tex = Some(t);
             } else {
-                tex = Texture::from_image(&mut *e.factory.borrow_mut(), &imgBufGray, &TextureSettings::new()).ok();
+                tex = Texture::from_image(&mut *e.factory.borrow_mut(), &res_img, &TextureSettings::new()).ok();
             }
         }
         e.draw_2d(|c, g| {
@@ -52,16 +56,4 @@ fn main() {
 
     println!("Done");
     drop(stream_receiver);
-
-    //let mut processor = opencl::imgproc::new(true, img.dimensions());
-
-    //loop {
-    //    let imgRaw = stream_receiver.recv();
-        //let img = image::load_from_memory(&imgRaw);
-    //    println!("Received img");
-    //};
-
-    //let res_img = processor.execute_edge_detection(img.raw_pixels());
-
-    //image_loader::save_image(res_img,  img.dimensions().0, img.dimensions().1);
 }
