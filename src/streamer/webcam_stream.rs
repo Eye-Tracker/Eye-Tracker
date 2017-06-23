@@ -28,12 +28,11 @@ impl Stream for webcam_steam {
                                         .start()
                                         .unwrap();
             for frame in cam {
-                println!("Got image");
                 let gray = DynamicImage::ImageRgb8(frame).grayscale();
                 if let Err(_) = sender.send(gray.raw_pixels()) {
+                    println!("Image sending failed!")
                     break;
                 }
-                break;
             }
         });
 
