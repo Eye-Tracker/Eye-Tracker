@@ -1,8 +1,7 @@
-pub extern crate image;
-
 use std::path::Path;
 
-use self::image::DynamicImage;
+use image;
+use image::DynamicImage;
 
 pub fn open_image(file: &str) -> DynamicImage {
     let img = image::open(&Path::new(file)).unwrap();

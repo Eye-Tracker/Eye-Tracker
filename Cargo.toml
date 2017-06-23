@@ -4,7 +4,10 @@ version = "0.0.1"
 authors = ["Mark Boss <markboss@mailbox.org>"]
 
 [dependencies]
-image = "*"
+image = "0.7"
 ocl = "0.14.1"
 find_folder = "0.3.0"
 time = "0.1"
+camera_capture = "0.3.0"
+piston_window = "0.40"
+piston-texture = "0.4"
