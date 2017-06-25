@@ -26,18 +26,17 @@ fn main() {
 
     let streamer: webcam_steam = streamer::Stream::setup();
     let dim = streamer.get_resolution();
-    let stream_receiver = streamer.fetch_images();
+    let (stream_handler, stream_receiver) = streamer.fetch_images();
 
     let mut processor = opencl::imgproc::new(true, dim);
 
     for e in window {
         if let Ok(frame) = stream_receiver.try_recv() {
-            println!("Received frame");
-            let img_buf = ImageBuffer::from_raw(dim.0, dim.1, frame).unwrap();
-            let res_raw = processor.execute_edge_detection(img_buf.raw_pixels()));
+            let img_buf: image::GrayImage = ImageBuffer::from_raw(dim.0, dim.1, frame).unwrap();
+            let res_raw = processor.execute_edge_detection(img_buf.into_vec());
 
-            let res_buf = ImageBuffer::from_raw(dim.0, dim.1, res_raw).unwrap();
-            let res_img = DynamicImage::ImageLuma8(res_buf).to_rgba();
+            let res_buf: image::GrayImage = ImageBuffer::from_raw(dim.0, dim.1, res_raw).unwrap();
+            let res_img: image::RgbaImage = DynamicImage::ImageLuma8(res_buf).to_rgba();
 
             if let Some(mut t) = tex {
                 t.update(&mut *e.encoder.borrow_mut(), &res_img).unwrap();
@@ -56,4 +55,5 @@ fn main() {
 
     println!("Done");
     drop(stream_receiver);
+    stream_handler.join().unwrap();
 }

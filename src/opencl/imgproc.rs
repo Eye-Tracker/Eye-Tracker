@@ -175,12 +175,7 @@ impl Canny {
 
     pub fn execute_edge_detection(&mut self, data: Vec<u8>) -> Vec<u8> {
         //Upload to old buffer
-
-        let start_transfer = PreciseTime::now();
-
         self.prev_buffer().cmd().write(&data).enq().unwrap();
-
-        let start_processing = PreciseTime::now();
 
         self.execute_gaussian();
 
@@ -190,18 +185,8 @@ impl Canny {
 
         self.execute_hyst();
 
-        let end_processing = PreciseTime::now();
-
         let mut res = vec![0u8; (self.dim.0 * self.dim.1) as usize]; //pretty unsafe
         self.prev_buffer().read(&mut res).enq().unwrap();
-
-        let end = PreciseTime::now();
-
-        println!("Done for an {} x {} image.", self.dim.0, self.dim.1);
-        println!("Took {} seconds for transfer to GPU.", start_transfer.to(start_processing));
-        println!("Executed canny edge detection in {} seconds.", start_processing.to(end_processing));
-        println!("And took {} seconds to transfer back to CPU.", end_processing.to(end));
-        println!("Total: {} seconds.", start_transfer.to(end));
 
         res
     }
