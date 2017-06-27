@@ -5,15 +5,17 @@ extern crate time;
 extern crate camera_capture;
 extern crate texture;
 extern crate piston_window;
+extern crate fps_counter;
 
 mod image_loader;
 mod opencl;
 mod streamer;
 
-use image::{GenericImage, DynamicImage, ImageBuffer};
-use streamer::webcam_stream::webcam_steam;
+use image::{DynamicImage, ImageBuffer};
+use streamer::webcam_stream::WebcamStream;
 use streamer::Stream;
 use piston_window::{PistonWindow, Texture, WindowSettings, TextureSettings, clear};
+use fps_counter::FPSCounter;
 
 fn main() {
     let window: PistonWindow =
@@ -24,14 +26,17 @@ fn main() {
 
     let mut tex: Option<Texture<_>> = None;
 
-    let streamer: webcam_steam = streamer::Stream::setup();
+    let streamer: WebcamStream = streamer::Stream::setup();
     let dim = streamer.get_resolution();
     let (stream_handler, stream_receiver) = streamer.fetch_images();
 
     let mut processor = opencl::imgproc::new(true, dim);
 
+    let mut fpsc = FPSCounter::new();
+
     for e in window {
         if let Ok(frame) = stream_receiver.try_recv() {
+            println!("FPS: {}", fpsc.tick());
             let img_buf: image::GrayImage = ImageBuffer::from_raw(dim.0, dim.1, frame).unwrap();
             let res_raw = processor.execute_edge_detection(img_buf.into_vec());
 

@@ -6,6 +6,6 @@ use std::thread::JoinHandle;
 pub trait Stream {
     // add code here
     fn setup() -> Self;
-    fn fetch_images(&self) -> (JoinHandle<()>, Receiver<Vec<u8>>);
+    fn fetch_images<'a>(&self) -> (JoinHandle<()>, Receiver<Vec<u8>>);
     fn get_resolution(&self) -> (u32, u32);
 }

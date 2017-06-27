@@ -1,7 +1,6 @@
 use ocl::{Device, Context, Queue, Kernel, Program, MemFlags, Buffer};
 use ocl::flags::DeviceType;
 use find_folder::Search;
-use time::PreciseTime;
 use std::mem;
 
 pub fn new(gpu: bool, dim: (u32, u32)) -> Canny {
