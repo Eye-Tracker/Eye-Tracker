@@ -17,9 +17,9 @@ use image::{DynamicImage, ImageBuffer};
 use fps_counter::FPSCounter;
 
 #[cfg(feature = "camera_support")]
-use streamer::webcam_stream::webcam_steam;
+use streamer::webcam_stream::WebcamStream;
 
-use streamer::dummy_streamer::dummy_stream;
+use streamer::dummy_streamer::DummyStream;
 use streamer::Stream;
 use piston_window::*;
 use std::thread::JoinHandle;
@@ -27,7 +27,7 @@ use std::sync::mpsc::Receiver;
 
 #[cfg(feature = "camera_support")]
 fn setup_streamer() -> (JoinHandle<()>, Receiver<Vec<u8>>, (u32, u32)) {
-        let streamer: webcam_steam = streamer::Stream::setup();
+        let streamer: WebcamStream = streamer::Stream::setup();
         let dim = streamer.get_resolution();
         let (stream_handler, stream_receiver) = streamer.fetch_images();
         (stream_handler, stream_receiver, dim)
@@ -35,7 +35,7 @@ fn setup_streamer() -> (JoinHandle<()>, Receiver<Vec<u8>>, (u32, u32)) {
 
 #[cfg(feature = "use_dummy_streamer")]
 fn setup_streamer() -> (JoinHandle<()>, Receiver<Vec<u8>>, (u32, u32)) {
-    let streamer: dummy_stream = streamer::Stream::setup();
+    let streamer: DummyStream = streamer::Stream::setup();
     let dim = streamer.get_resolution();
     let (stream_handler, stream_receiver) = streamer.fetch_images();
     (stream_handler, stream_receiver, dim)
@@ -43,9 +43,12 @@ fn setup_streamer() -> (JoinHandle<()>, Receiver<Vec<u8>>, (u32, u32)) {
 
 
 fn main() {
+    let (stream_handler, stream_receiver, dim) = setup_streamer();
+    let mut processor = opencl::imgproc::new(true, dim);
+
     let opengl = OpenGL::V3_2;
     let mut window: PistonWindow =
-        WindowSettings::new("Eye Detection", [640, 480])
+        WindowSettings::new("Eye Detection", [dim.0, dim.1])
         .exit_on_esc(true)
         .opengl(opengl)
         .build()
@@ -53,9 +56,6 @@ fn main() {
 
     let mut tex: Option<Texture<_>> = None;
     let mut fpsc = FPSCounter::new();
-
-    let (stream_handler, stream_receiver, dim) = setup_streamer();
-    let mut processor = opencl::imgproc::new(true, dim);
 
     while let Some(e) = window.next() {
         if let Ok(frame) = stream_receiver.try_recv() {

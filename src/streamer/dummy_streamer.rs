@@ -1,21 +1,19 @@
 use std::sync::mpsc::{channel, Receiver};
 use std::thread;
 use streamer::Stream;
-use image::{GenericImage, DynamicImage, Rgb, Pixel};
-use image::imageops::colorops;
+use image::{GenericImage, DynamicImage};
 use image_loader;
 
-
 #[derive(Clone)]
-pub struct dummy_stream{
+pub struct DummyStream{
     dim: (u32, u32),
     img: DynamicImage
 }
 
-impl Stream for dummy_stream {
-    fn setup() -> dummy_stream {
+impl Stream for DummyStream {
+    fn setup() -> DummyStream {
         let img = image_loader::open_image("eye.jpg");
-        dummy_stream{ dim: (img.width(), img.height()), img: img }
+        DummyStream{ dim: (img.width(), img.height()), img: img }
     }
 
     fn fetch_images(&self) -> (thread::JoinHandle<()>, Receiver<Vec<u8>>) {
