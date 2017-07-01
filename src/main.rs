@@ -4,6 +4,7 @@ extern crate find_folder;
 extern crate time;
 extern crate texture;
 extern crate piston_window;
+extern crate fps_counter;
 
 #[cfg(feature = "camera_support")]
 extern crate camera_capture;
@@ -13,6 +14,7 @@ mod opencl;
 mod streamer;
 
 use image::{DynamicImage, ImageBuffer};
+use fps_counter::FPSCounter;
 
 #[cfg(feature = "camera_support")]
 use streamer::webcam_stream::webcam_steam;
@@ -50,12 +52,14 @@ fn main() {
         .unwrap();
 
     let mut tex: Option<Texture<_>> = None;
+    let mut fpsc = FPSCounter::new();
 
     let (stream_handler, stream_receiver, dim) = setup_streamer();
     let mut processor = opencl::imgproc::new(true, dim);
 
     while let Some(e) = window.next() {
         if let Ok(frame) = stream_receiver.try_recv() {
+            println!("FPS: {}", fpsc.tick());
             let img_buf: image::GrayImage = ImageBuffer::from_raw(dim.0, dim.1, frame).unwrap();
             let res_raw = processor.execute_edge_detection(img_buf.into_vec());
 
