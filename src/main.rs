@@ -13,7 +13,7 @@ mod image_loader;
 mod opencl;
 mod streamer;
 
-use image::{DynamicImage, ImageBuffer};
+use image::ImageBuffer;
 use fps_counter::FPSCounter;
 
 #[cfg(feature = "camera_support")]
@@ -41,7 +41,6 @@ fn setup_streamer() -> (JoinHandle<()>, Receiver<Vec<u8>>, (u32, u32)) {
     (stream_handler, stream_receiver, dim)
 }
 
-
 fn main() {
     let (stream_handler, stream_receiver, dim) = setup_streamer();
     let mut processor = opencl::imgproc::new(true, dim);
@@ -60,11 +59,9 @@ fn main() {
     while let Some(e) = window.next() {
         if let Ok(frame) = stream_receiver.try_recv() {
             println!("FPS: {}", fpsc.tick());
-            let img_buf: image::GrayImage = ImageBuffer::from_raw(dim.0, dim.1, frame).unwrap();
-            let res_raw = processor.execute_edge_detection(img_buf.into_vec());
+            let res_raw = processor.execute_edge_detection(frame);
 
-            let res_buf: image::GrayImage = ImageBuffer::from_raw(dim.0, dim.1, res_raw).unwrap();
-            let res_img: image::RgbaImage = DynamicImage::ImageLuma8(res_buf).to_rgba();
+            let res_img: image::RgbaImage = ImageBuffer::from_raw(dim.0, dim.1, res_raw).unwrap();
 
             if let Some(mut t) = tex {
                 t.update(&mut window.encoder, &res_img).unwrap();

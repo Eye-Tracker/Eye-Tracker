@@ -6,7 +6,7 @@ use std::mem;
 pub fn new(gpu: bool, dim: (u32, u32)) -> Canny {
     let cpu_or_gpu = if gpu { "gpu/" } else { "cpu/" };
     let dtype = if gpu { DeviceType::new().gpu() } else { DeviceType::new().cpu() };
-    let workgroup_size = if gpu { 16 } else { 1 };
+    //let workgroup_size = if gpu { 16 } else { 1 };
 
     let path = Search::ParentsThenKids(3, 3).for_folder("kernels").unwrap();
 
@@ -14,6 +14,8 @@ pub fn new(gpu: bool, dim: (u32, u32)) -> Canny {
     let hyst_src_file = path.join(cpu_or_gpu.to_string() + "hysteresis_kernel.cl");
     let non_max_supp_src_file = path.join(cpu_or_gpu.to_string() + "non_max_suppression_kernel.cl");
     let sobel_src_file = path.join(cpu_or_gpu.to_string() + "sobel_kernel.cl");
+    let grayscale_src_file = path.join(cpu_or_gpu.to_string() + "rgb_to_luma.cl");
+    let rgba_src_file = path.join(cpu_or_gpu.to_string() + "luma_to_rgba.cl");
 
     let context = Context::builder().devices(Device::specifier().type_flags(dtype).first()).build().unwrap();
     let device = context.devices()[0];
@@ -26,24 +28,20 @@ pub fn new(gpu: bool, dim: (u32, u32)) -> Canny {
     let hyst = Program::builder().src_file(hyst_src_file).build(&context).unwrap();
     let nms = Program::builder().src_file(non_max_supp_src_file).build(&context).unwrap();
     let sobel = Program::builder().src_file(sobel_src_file).build(&context).unwrap();
+    let grayscale = Program::builder().src_file(grayscale_src_file).build(&context).unwrap();
+    let rgba_expand = Program::builder().src_file(rgba_src_file).build(&context).unwrap();
 
     let pqs = ProcessingProQues {
         gauss: gauss,
         hyst: hyst,
         nms: nms,
         sobel: sobel,
+        grayscale: grayscale,
+        rgba_expand: rgba_expand,
         queue: queue,
-        lws: workgroup_size,
     };
 
     Canny::new(pqs, dim)
-}
-
-pub fn calculate_dimensions(dim: (u32, u32), workgroup_size: u32) -> (u32, u32) {
-    let cols = ((dim.0 - 2) / workgroup_size) * workgroup_size + 2;
-    let rows = ((dim.1 - 2) / workgroup_size) * workgroup_size + 2;
-
-    (cols, rows)
 }
 
 pub struct ProcessingProQues {
@@ -51,12 +49,15 @@ pub struct ProcessingProQues {
     hyst: Program,
     nms: Program,
     sobel: Program,
+    grayscale: Program,
+    rgba_expand: Program,
     queue: Queue,
-    lws: u32,
 }
 
 pub struct Canny{
     buffers: Vec<Buffer<u8>>,
+    rgb_buffer: Buffer<u8>,
+    rgba_buffer: Buffer<u8>,
     theta_buffer: Buffer<u8>,
     buffer_index: usize,
     proques: ProcessingProQues,
@@ -68,12 +69,25 @@ impl Canny {
 
     pub fn new(pqs: ProcessingProQues, dim: (u32, u32)) -> Canny {
         let kdim = dim.0.checked_mul(dim.1).unwrap().checked_mul(mem::size_of::<u8>() as u32).unwrap();
+        let rgbdim = kdim.checked_mul(3).unwrap();
+        let rgbadim = kdim.checked_mul(4).unwrap();
+
+        let rgb_buffer = Buffer::builder()
+            .queue(pqs.queue.clone())
+            .flags(MemFlags::new().read_write().alloc_host_ptr())
+            .dims(rgbdim.clone())
+            .build().unwrap();
+
+        let rgba_buffer = Buffer::builder()
+            .queue(pqs.queue.clone())
+            .flags(MemFlags::new().read_write().alloc_host_ptr())
+            .dims(rgbadim.clone())
+            .build().unwrap();
 
         let next_buffer = Buffer::builder()
             .queue(pqs.queue.clone())
             .flags(MemFlags::new().read_write().alloc_host_ptr())
             .dims(kdim.clone())
-            //.host_data(&data)
             .build().unwrap();
         
         let prev_buffer = Buffer::builder()
@@ -90,11 +104,7 @@ impl Canny {
 
         let buffers = vec![prev_buffer, next_buffer];
 
-        Canny { buffers: buffers, theta_buffer: theta_buffer, buffer_index: 0, proques: pqs, dim: dim }
-    }
-
-    pub fn get_desired_size(&mut self) -> (u32, u32) {
-        self.dim
+        Canny { buffers: buffers, rgb_buffer: rgb_buffer, rgba_buffer: rgba_buffer, theta_buffer: theta_buffer, buffer_index: 0, proques: pqs, dim: dim }
     }
 
     fn next_buffer(&self) -> &Buffer<u8> {
@@ -109,6 +119,30 @@ impl Canny {
         self.buffer_index = self.buffer_index ^ 1; //bitwise xor with 1 switches between 0 and 1
 
         self
+    }
+
+    fn execute_grayscale(&mut self) {
+        let kernel = Kernel::new("rgb_to_luma_kernel", &self.proques.grayscale).unwrap()
+            .queue(self.proques.queue.clone())
+            .gws([self.dim.0, self.dim.1])
+            .arg_buf(&self.rgb_buffer)
+            .arg_buf(self.prev_buffer())
+            .arg_scl(self.dim.0)
+            .arg_scl(self.dim.1);
+
+        kernel.enq().unwrap();
+    }
+
+    fn execute_rgba_expand(&mut self) {
+        let kernel = Kernel::new("luma_to_rgba_kernel", &self.proques.rgba_expand).unwrap()
+            .queue(self.proques.queue.clone())
+            .gws([self.dim.0, self.dim.1])
+            .arg_buf(self.prev_buffer())
+            .arg_buf(&self.rgba_buffer)
+            .arg_scl(self.dim.0)
+            .arg_scl(self.dim.1);
+
+        kernel.enq().unwrap();
     }
 
     fn execute_gaussian(&mut self) {
@@ -174,7 +208,9 @@ impl Canny {
 
     pub fn execute_edge_detection(&mut self, data: Vec<u8>) -> Vec<u8> {
         //Upload to old buffer
-        self.prev_buffer().cmd().write(&data).enq().unwrap();
+        self.rgb_buffer.cmd().write(&data).enq().unwrap();
+
+        self.execute_grayscale();
 
         self.execute_gaussian();
 
@@ -184,8 +220,10 @@ impl Canny {
 
         self.execute_hyst();
 
-        let mut res = vec![0u8; (self.dim.0 * self.dim.1) as usize]; //pretty unsafe
-        self.prev_buffer().read(&mut res).enq().unwrap();
+        self.execute_rgba_expand();
+
+        let mut res = vec![0u8; (self.dim.0 * self.dim.1 * 4) as usize]; //pretty unsafe
+        self.rgba_buffer.read(&mut res).enq().unwrap();
 
         res
     }

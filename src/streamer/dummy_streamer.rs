@@ -22,8 +22,7 @@ impl Stream for DummyStream {
 
         let handler = thread::spawn(move || {
             loop {
-                let gray = self_clone.img.grayscale();
-                if let Err(_) = sender.send(gray.raw_pixels()) {
+                if let Err(_) = sender.send(self_clone.img.raw_pixels()) {
                     println!("Image sending failed!");
                     break;
                 }
