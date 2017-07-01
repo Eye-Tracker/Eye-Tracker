@@ -28,8 +28,7 @@ impl Stream for WebcamStream {
                                         .unwrap();
 
             for frame in cam {
-                let gray = DynamicImage::ImageRgb8(frame).grayscale();
-                if let Err(_) = sender.send(gray.raw_pixels()) {
+                if let Err(_) = sender.send(frame.raw_pixels()) {
                     println!("Image sending failed!");
                     break;
                 }
