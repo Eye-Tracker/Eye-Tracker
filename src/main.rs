@@ -53,12 +53,23 @@ fn main() {
         .build()
         .unwrap();
 
+    let assets = find_folder::Search::ParentsThenKids(3, 3)
+        .for_folder("assets").unwrap();
+    let ref font = assets.join("FiraSans-Regular.ttf");
+    let factory = window.factory.clone();
+    let mut glyphs = Glyphs::new(font, factory).unwrap();
+
     let mut tex: Option<Texture<_>> = None;
     let mut fpsc = FPSCounter::new();
 
+    let limbus_pos = [
+            dim.0 as f64 / 2.5,
+            dim.1 as f64 / 3.5,
+            dim.0 as f64 / 3.0,
+            dim.0 as f64 / 3.0];
+
     while let Some(e) = window.next() {
         if let Ok(frame) = stream_receiver.try_recv() {
-            println!("FPS: {}", fpsc.tick());
             let res_raw = processor.execute_edge_detection(frame);
 
             let res_img: image::RgbaImage = ImageBuffer::from_raw(dim.0, dim.1, res_raw).unwrap();
@@ -74,6 +85,15 @@ fn main() {
             clear([1.0; 4], g);
             if let Some(ref t) = tex {
                 piston_window::image(t, c.transform, g);
+                Ellipse::new_border([1.0, 0.0, 0.0, 1.0], 1f64)
+                    .draw(limbus_pos, &c.draw_state, c.transform, g);
+                let transform = c.transform.trans(10.0, 30.0);
+                text::Text::new_color([0.29, 0.68, 0.31, 1.0], 24).draw(
+                    &format!("FPS: {}", fpsc.tick()),
+                    &mut glyphs,
+                    &c.draw_state,
+                    transform, g
+                );
             }
         });
     }
