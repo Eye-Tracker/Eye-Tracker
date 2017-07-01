@@ -2,7 +2,6 @@ use std::sync::mpsc::{channel, Receiver};
 use std::thread;
 use streamer::Stream;
 use camera_capture;
-use image::DynamicImage;
 
 #[derive(Clone)]
 pub struct WebcamStream{
@@ -11,7 +10,7 @@ pub struct WebcamStream{
 
 impl Stream for WebcamStream {
     fn setup() -> WebcamStream {
-        WebcamStream{ dim: (1280, 720) }
+        WebcamStream{ dim: (640, 480) }
     }
 
     fn fetch_images<'a>(&self) -> (thread::JoinHandle<()>, Receiver<Vec<u8>>) {
@@ -28,7 +27,7 @@ impl Stream for WebcamStream {
                                         .unwrap();
 
             for frame in cam {
-                if let Err(_) = sender.send(frame.raw_pixels()) {
+                if let Err(_) = sender.send(frame.into_raw()) {
                     println!("Image sending failed!");
                     break;
                 }
