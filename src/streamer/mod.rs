@@ -1,4 +1,7 @@
+#[cfg(feature = "camera_support")]
 pub mod webcam_stream;
+
+pub mod dummy_streamer;
 
 use std::sync::mpsc::Receiver;
 use std::thread::JoinHandle;

@@ -2,35 +2,59 @@ extern crate image;
 extern crate ocl;
 extern crate find_folder;
 extern crate time;
-extern crate camera_capture;
 extern crate texture;
 extern crate piston_window;
+
+#[cfg(feature = "camera_support")]
+extern crate camera_capture;
 
 mod image_loader;
 mod opencl;
 mod streamer;
 
-use image::{GenericImage, DynamicImage, ImageBuffer};
+use image::{DynamicImage, ImageBuffer};
+
+#[cfg(feature = "camera_support")]
 use streamer::webcam_stream::webcam_steam;
+
+use streamer::dummy_streamer::dummy_stream;
 use streamer::Stream;
-use piston_window::{PistonWindow, Texture, WindowSettings, TextureSettings, clear};
+use piston_window::*;
+use std::thread::JoinHandle;
+use std::sync::mpsc::Receiver;
+
+#[cfg(feature = "camera_support")]
+fn setup_streamer() -> (JoinHandle<()>, Receiver<Vec<u8>>, (u32, u32)) {
+        let streamer: webcam_steam = streamer::Stream::setup();
+        let dim = streamer.get_resolution();
+        let (stream_handler, stream_receiver) = streamer.fetch_images();
+        (stream_handler, stream_receiver, dim)
+}
+
+#[cfg(feature = "use_dummy_streamer")]
+fn setup_streamer() -> (JoinHandle<()>, Receiver<Vec<u8>>, (u32, u32)) {
+    let streamer: dummy_stream = streamer::Stream::setup();
+    let dim = streamer.get_resolution();
+    let (stream_handler, stream_receiver) = streamer.fetch_images();
+    (stream_handler, stream_receiver, dim)
+}
+
 
 fn main() {
-    let window: PistonWindow =
+    let opengl = OpenGL::V3_2;
+    let mut window: PistonWindow =
         WindowSettings::new("Eye Detection", [640, 480])
         .exit_on_esc(true)
+        .opengl(opengl)
         .build()
         .unwrap();
 
     let mut tex: Option<Texture<_>> = None;
 
-    let streamer: webcam_steam = streamer::Stream::setup();
-    let dim = streamer.get_resolution();
-    let (stream_handler, stream_receiver) = streamer.fetch_images();
-
+    let (stream_handler, stream_receiver, dim) = setup_streamer();
     let mut processor = opencl::imgproc::new(true, dim);
 
-    for e in window {
+    while let Some(e) = window.next() {
         if let Ok(frame) = stream_receiver.try_recv() {
             let img_buf: image::GrayImage = ImageBuffer::from_raw(dim.0, dim.1, frame).unwrap();
             let res_raw = processor.execute_edge_detection(img_buf.into_vec());
@@ -39,13 +63,13 @@ fn main() {
             let res_img: image::RgbaImage = DynamicImage::ImageLuma8(res_buf).to_rgba();
 
             if let Some(mut t) = tex {
-                t.update(&mut *e.encoder.borrow_mut(), &res_img).unwrap();
+                t.update(&mut window.encoder, &res_img).unwrap();
                 tex = Some(t);
             } else {
-                tex = Texture::from_image(&mut *e.factory.borrow_mut(), &res_img, &TextureSettings::new()).ok();
+                tex = Texture::from_image(&mut window.factory, &res_img, &TextureSettings::new()).ok();
             }
         }
-        e.draw_2d(|c, g| {
+        window.draw_2d(&e, |c, g| {
             clear([1.0; 4], g);
             if let Some(ref t) = tex {
                 piston_window::image(t, c.transform, g);
