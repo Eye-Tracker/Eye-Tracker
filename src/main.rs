@@ -44,7 +44,9 @@ fn setup_streamer() -> (Box<Iterator<Item = Vec<u8>>>, (u32, u32)) {
 
 fn main() {
     let (mut iterator, dim) = setup_streamer();
-    let mut processor = opencl::imgproc::new(true, dim);
+    let processor = opencl::imgproc::setup(true, dim);
+    
+    let mut canny_edge = processor.setup_canny_edge_detection();
 
     let opengl = OpenGL::V3_2;
     let mut window: PistonWindow =
@@ -78,7 +80,7 @@ fn main() {
                                         )
                                         .collect();
 
-            let result = processor.execute_edge_detection(grayscaled);
+            let result = canny_edge.execute_edge_detection(grayscaled);
 
             let rgba: Vec<u8> = result.par_iter()
                                     .cloned()
