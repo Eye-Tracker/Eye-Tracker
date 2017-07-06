@@ -170,7 +170,7 @@ impl Canny {
 
         self.execute_hyst();
 
-        let mut res = vec![0u8; self.prev_buffer().len()]; //pretty unsafe
+        let mut res = vec![0u8; self.prev_buffer().len()];
         self.prev_buffer().read(&mut res).enq().unwrap();
 
         res

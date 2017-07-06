@@ -20,31 +20,30 @@ use fps_counter::FPSCounter;
 #[cfg(feature = "camera_support")]
 use streamer::webcam_stream::WebcamStream;
 
+#[cfg(feature = "use_dummy_streamer")]
 use streamer::dummy_streamer::DummyStream;
 use streamer::Stream;
 use piston_window::*;
-use std::thread::JoinHandle;
-use std::sync::mpsc::Receiver;
 use rayon::prelude::*;
 
 #[cfg(feature = "camera_support")]
-fn setup_streamer() -> (JoinHandle<()>, Receiver<Vec<u8>>, (u32, u32)) {
-        let streamer: WebcamStream = streamer::Stream::setup();
-        let dim = streamer.get_resolution();
-        let (stream_handler, stream_receiver) = streamer.fetch_images();
-        (stream_handler, stream_receiver, dim)
+fn setup_streamer() -> (Box<Iterator<Item = Vec<u8>>>, (u32, u32)) {
+    let streamer: WebcamStream = streamer::Stream::setup();
+    let dim = streamer.get_resolution();
+    let iterator = streamer.fetch_images();
+    (iterator, dim)
 }
 
 #[cfg(feature = "use_dummy_streamer")]
-fn setup_streamer() -> (JoinHandle<()>, Receiver<Vec<u8>>, (u32, u32)) {
+fn setup_streamer() -> (Box<Iterator<Item = Vec<u8>>>, (u32, u32)) {
     let streamer: DummyStream = streamer::Stream::setup();
     let dim = streamer.get_resolution();
-    let (stream_handler, stream_receiver) = streamer.fetch_images();
-    (stream_handler, stream_receiver, dim)
+    let iterator = streamer.fetch_images();
+    (iterator, dim)
 }
 
 fn main() {
-    let (stream_handler, stream_receiver, dim) = setup_streamer();
+    let (mut iterator, dim) = setup_streamer();
     let mut processor = opencl::imgproc::new(true, dim);
 
     let opengl = OpenGL::V3_2;
@@ -71,8 +70,13 @@ fn main() {
             dim.0 as f64 / 3.0];
 
     while let Some(e) = window.next() {
-        if let Ok(frame) = stream_receiver.try_recv() {
-            let grayscaled: Vec<u8> = (&frame).par_chunks(3).map(|p| (0.299 * p[0] as f32 + 0.587 * p[1] as f32 + 0.144 * p[2] as f32) as u8).collect();
+        if let Some(frame) = iterator.next() {
+            let grayscaled: Vec<u8> = (&frame)
+                                        .par_chunks(3)
+                                        .map(|p| 
+                                            (0.299 * p[0] as f32 + 0.587 * p[1] as f32 + 0.144 * p[2] as f32) as u8
+                                        )
+                                        .collect();
 
             let result = processor.execute_edge_detection(grayscaled);
 
@@ -118,6 +122,4 @@ fn main() {
     }
 
     println!("Done");
-    drop(stream_receiver);
-    stream_handler.join().unwrap();
 }

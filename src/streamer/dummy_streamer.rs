@@ -1,8 +1,7 @@
-use std::sync::mpsc::{channel, Receiver};
-use std::thread;
 use streamer::Stream;
 use image::{GenericImage, DynamicImage};
 use image_loader;
+use std::iter;
 
 #[derive(Clone)]
 pub struct DummyStream{
@@ -16,23 +15,8 @@ impl Stream for DummyStream {
         DummyStream{ dim: (img.width(), img.height()), img: img }
     }
 
-    fn fetch_images(&self) -> (thread::JoinHandle<()>, Receiver<Vec<u8>>) {
-        let (sender, receiver) = channel();
-        let self_clone = self.clone();
-
-        let handler = thread::spawn(move || {
-            loop {
-                if let Err(_) = sender.send(self_clone.img.raw_pixels()) {
-                    println!("Image sending failed!");
-                    break;
-                }
-            }
-            println!("No more images in queue");
-        });
-
-        println!("End of fetch images");
-
-        (handler, receiver)
+    fn fetch_images(&self) -> Box<Iterator<Item = Vec<u8>>> {
+        Box::new(iter::repeat(self.img.raw_pixels()))
     }
 
     fn get_resolution(&self) -> (u32, u32) {
