@@ -17,3 +17,4 @@ camera_capture = { version = "0.3.0", optional = true }
 piston_window = "0.67.0"
 piston-texture = "0.5.0"
 fps_counter = "0.2.0"
+rayon = "0.8.1"

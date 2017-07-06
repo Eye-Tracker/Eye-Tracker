@@ -5,6 +5,7 @@ extern crate time;
 extern crate texture;
 extern crate piston_window;
 extern crate fps_counter;
+extern crate rayon;
 
 #[cfg(feature = "camera_support")]
 extern crate camera_capture;
@@ -24,6 +25,7 @@ use streamer::Stream;
 use piston_window::*;
 use std::thread::JoinHandle;
 use std::sync::mpsc::Receiver;
+use rayon::prelude::*;
 
 #[cfg(feature = "camera_support")]
 fn setup_streamer() -> (JoinHandle<()>, Receiver<Vec<u8>>, (u32, u32)) {
@@ -70,9 +72,26 @@ fn main() {
 
     while let Some(e) = window.next() {
         if let Ok(frame) = stream_receiver.try_recv() {
-            let res_raw = processor.execute_edge_detection(frame);
+            let grayscaled: Vec<u8> = (&frame).par_chunks(3).map(|p| (0.299 * p[0] as f32 + 0.587 * p[1] as f32 + 0.144 * p[2] as f32) as u8).collect();
 
-            let res_img: image::RgbaImage = ImageBuffer::from_raw(dim.0, dim.1, res_raw).unwrap();
+            let result = processor.execute_edge_detection(grayscaled);
+
+            let rgba: Vec<u8> = result.par_iter()
+                                    .cloned()
+                                    .fold(|| Vec::new(), |mut data, elem| {
+                                        data.push(elem);
+                                        data.push(elem);
+                                        data.push(elem);
+                                        data.push(255u8);
+                                        data
+                                    })
+                                    .reduce(|| Vec::new(),
+                                            |mut vec1, mut vec2| { 
+                                        vec1.append(&mut vec2); 
+                                        vec1 
+                                    });
+
+            let res_img: image::RgbaImage = ImageBuffer::from_raw(dim.0, dim.1, rgba).expect("ImageBuffer couldn't be created");
 
             if let Some(mut t) = tex {
                 t.update(&mut window.encoder, &res_img).unwrap();
