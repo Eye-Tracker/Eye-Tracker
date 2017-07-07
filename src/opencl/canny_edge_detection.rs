@@ -2,35 +2,18 @@ use ocl::{Queue, Kernel, Context, Program, MemFlags, Buffer};
 use std::mem;
 use std::path::PathBuf;
 
-struct Programms {
-    gauss: Program,
-    hyst: Program,
-    nms: Program,
-    sobel: Program,
-}
-
 pub struct Canny{
     buffers: Vec<Buffer<u8>>,
     theta_buffer: Buffer<u8>,
     buffer_index: usize,
-    programms: Programms,
+    program: Program,
     queue: Queue,
     dim: (u32, u32),
 }
 
 impl Canny {
     pub fn new(path: PathBuf, context: &Context, queue: Queue, dim: (u32, u32)) -> Canny {
-        let gauss = Program::builder().src_file(path.join("gaussian_kernel.cl")).build(context).unwrap();
-        let hyst = Program::builder().src_file(path.join("hysteresis_kernel.cl")).build(context).unwrap();
-        let nms = Program::builder().src_file(path.join("non_max_suppression_kernel.cl")).build(context).unwrap();
-        let sobel = Program::builder().src_file(path.join("sobel_kernel.cl")).build(context).unwrap();
-
-        let programms = Programms {
-            gauss: gauss,
-            hyst: hyst,
-            nms: nms,
-            sobel: sobel
-        };
+        let program = Program::builder().src_file(path.join("canny_edge_detection.cl")).build(context).unwrap();
 
         let kdim = dim.0.checked_mul(dim.1).unwrap().checked_mul(mem::size_of::<u8>() as u32).unwrap();
 
@@ -54,7 +37,7 @@ impl Canny {
 
         let buffers = vec![prev_buffer, next_buffer];
 
-        Canny { buffers: buffers, theta_buffer: theta_buffer, buffer_index: 0, programms: programms, queue: queue, dim: dim }
+        Canny { buffers: buffers, theta_buffer: theta_buffer, buffer_index: 0, program: program, queue: queue, dim: dim }
     }
 
     fn next_buffer(&self) -> &Buffer<u8> {
@@ -72,7 +55,7 @@ impl Canny {
     }
 
     fn execute_gaussian(&mut self) {
-        let kernel = Kernel::new("gaussian_kernel", &self.programms.gauss).unwrap()
+        let kernel = Kernel::new("gaussian_kernel", &self.program).unwrap()
             .queue(self.queue.clone())
             .gws([self.dim.0, self.dim.1])
             .arg_buf(self.prev_buffer())
@@ -86,7 +69,7 @@ impl Canny {
     }
 
     fn execute_sobel(&mut self) {
-        let kernel = Kernel::new("sobel_kernel", &self.programms.sobel).unwrap()
+        let kernel = Kernel::new("sobel_kernel", &self.program).unwrap()
             .queue(self.queue.clone())
             .gws([self.dim.0, self.dim.1])
             .arg_buf(self.prev_buffer())
@@ -101,7 +84,7 @@ impl Canny {
     }
 
     fn execute_nms(&mut self) {
-        let kernel = Kernel::new("non_max_suppression_kernel", &self.programms.nms).unwrap()
+        let kernel = Kernel::new("non_max_suppression_kernel", &self.program).unwrap()
             .queue(self.queue.clone())
             .gws([self.dim.0 , self.dim.1])
             .arg_buf(self.prev_buffer())
@@ -116,7 +99,7 @@ impl Canny {
     }
 
     fn execute_hyst(&mut self) {
-        let kernel = Kernel::new("hysteresis_kernel", &self.programms.hyst).unwrap()
+        let kernel = Kernel::new("hysteresis_kernel", &self.program).unwrap()
             .queue(self.queue.clone())
             .gws([self.dim.0, self.dim.1])
             .arg_buf(self.prev_buffer())
