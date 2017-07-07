@@ -159,13 +159,11 @@ __kernel void non_max_suppression_kernel(__global uchar *data,
 // out: image output (8Bit 1Channel)
 __kernel void hysteresis_kernel(__global uchar *data,
                                 __global uchar *out,
+                                        float lowThresh,
+                                        float highThresh,
                                         uint rows,
                                         uint cols)
 {
-	// Establish our high and low thresholds as floats
-	float lowThresh = 10;
-	float highThresh = 70;
-
 	// These variables are offset by one to avoid seg. fault errors
     // As such, this kernel ignores the outside ring of pixels
 	size_t row = get_global_id(0);

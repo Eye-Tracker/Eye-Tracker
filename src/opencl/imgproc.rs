@@ -34,7 +34,7 @@ pub fn setup(gpu: bool, dim: (u32, u32)) -> ImgProcessor {
 }
 
 impl ImgProcessor {
-    pub fn setup_canny_edge_detection(&self) -> Canny {
-        Canny::new(self.path.clone(), &self.context, self.queue.clone(), self.dim)
+    pub fn setup_canny_edge_detection(&self, lowThreshold: f32, highThreshold: f32) -> Canny {
+        Canny::new(lowThreshold, highThreshold, self.path.clone(), &self.context, self.queue.clone(), self.dim)
     }
 }

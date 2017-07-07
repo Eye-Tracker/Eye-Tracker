@@ -46,7 +46,7 @@ fn main() {
     let (mut iterator, dim) = setup_streamer();
     let processor = opencl::imgproc::setup(true, dim);
     
-    let mut canny_edge = processor.setup_canny_edge_detection();
+    let mut canny_edge = processor.setup_canny_edge_detection(10.0, 70.0);
 
     let opengl = OpenGL::V3_2;
     let mut window: PistonWindow =
