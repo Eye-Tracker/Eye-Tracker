@@ -13,8 +13,10 @@ image = "0.14.0"
 ocl = "0.14.1"
 find_folder = "0.3.0"
 time = "0.1"
-camera_capture = { git = "https://github.com/vork/camera_capture", optional = true }
 piston_window = "0.67.0"
 piston-texture = "0.5.0"
 fps_counter = "0.2.0"
-rayon = "0.8.1"
+
+[dependencies.camera_capture]
+git = "https://github.com/vork/camera_capture"
+optional = true

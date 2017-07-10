@@ -1,5 +1,6 @@
 use streamer::Stream;
 use camera_capture;
+use image;
 
 #[derive(Clone)]
 pub struct WebcamStream{
@@ -11,7 +12,7 @@ impl Stream for WebcamStream {
         WebcamStream{ dim: (1280, 720) }
     }
 
-    fn fetch_images(&self) -> Box<Iterator<Item = Vec<u8>>> {
+    fn fetch_images(&self) -> Box<Iterator<Item = image::RgbImage>> {
         let cam = camera_capture::create(0).unwrap()
                                     .fps(30.0)
                                     .unwrap()
@@ -20,7 +21,7 @@ impl Stream for WebcamStream {
                                     .start()
                                     .unwrap();
 
-        Box::new(cam.map(|img| img.into_raw()))
+        Box::new(cam.map(|img| img))
     }
 
     fn get_resolution(&self) -> (u32, u32) {
