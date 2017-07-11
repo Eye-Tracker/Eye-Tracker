@@ -16,6 +16,7 @@ time = "0.1"
 piston_window = "0.67.0"
 piston-texture = "0.5.0"
 fps_counter = "0.2.0"
+indextree = "1.0.1"
 
 [dependencies.camera_capture]
 git = "https://github.com/vork/camera_capture"

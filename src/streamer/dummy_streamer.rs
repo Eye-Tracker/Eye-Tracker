@@ -1,5 +1,4 @@
 use streamer::Stream;
-use image::{GenericImage, DynamicImage};
 use image_loader;
 use std::iter;
 use image;

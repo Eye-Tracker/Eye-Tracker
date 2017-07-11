@@ -1,49 +1,8 @@
 use image::RgbaImage;
+use contour_detection::Coordinates;
+use std;
 
-pub struct Coordinates {
-    pub x: usize,
-    pub y: usize,
-}
-
-impl Coordinates {
-    pub fn new(x: usize, y: usize) -> Coordinates {
-        Coordinates{ x: x, y: y }
-    }
-
-    pub fn eq_y(&self, other: &Coordinates) -> bool {
-        self.y == other.y
-    }
-
-    pub fn eq_x(&self, other: &Coordinates) -> bool {
-        self.x == other.x
-    }
-
-    pub fn lt_y(&self, other: &Coordinates) -> bool {
-        self.y < other.y
-    }
-
-    pub fn lt_x(&self, other: &Coordinates) -> bool {
-        self.x < other.x
-    }
-
-    pub fn gt_y(&self, other: &Coordinates) -> bool {
-        self.y > other.y
-    }
-
-    pub fn gt_x(&self, other: &Coordinates) -> bool {
-        self.x > other.x
-    }
-}
-
-impl PartialEq for Coordinates {
-    fn eq(&self, other: Coordinates) -> bool {
-        self.x == other.x && self.y == other.y
-    }
-}
-
-impl Eq for Coordinates {}
-
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 #[repr(i32)]
 enum Direction {
     North,
@@ -66,82 +25,98 @@ static CCENTRY: &'static [Direction] = &[Direction::East, Direction::South,
     Direction::North, Direction::East];
 impl Direction {
     pub fn clockwise(&self) -> Direction {
-        let val = self as i32;
-        let ret: Direction = unsafe{ std::mem::transmute((val + 1) % 8) } //This is really unsafe
-        ret
+        let val = *self as i32;
+        unsafe{ 
+            let ret: Direction = std::mem::transmute((val + 1) % 8);
+            return ret; 
+        } //This is really unsafe
+        panic!("Unsafe block in Clockwise Direction failed!");
     }
 
     pub fn counter_clockwise(&self) -> Direction {
-        let val = self as i32;
+        let val = *self as i32;
         let desired = if val - 1 == -1 {
             8 - 1
         } else {
             val - 1
-        }
-        let ret: Direction = unsafe{ std::mem::transmute(desired) } //This is really unsafe
-        ret
+        };
+        unsafe { 
+            let ret: Direction = std::mem::transmute(desired);
+            return ret;
+        } //This is really unsafe
+        panic!("Unsafe block in Counter Clockwise Direction failed!");
     }
 
     pub fn active(&self, pos: Coordinates, img: RgbaImage) -> Result<Option<Coordinates>, &'static str> {
-        let cur = self as i32;
-        let y = pos.y + DIR_Y[cur];
-        let x = pos.x + DIR_X[cur];
-        if x < 0 || x >= img.width() || y < 0 || y >= img.height() {
+        let cur = *self as i32;
+        let y = pos.y as i32 + DIR_Y[cur as usize];
+        let x = pos.x as i32 + DIR_X[cur as usize];
+        if x < 0 || x >= img.width() as i32 || y < 0 || y >= img.height() as i32 {
             Err("Position needs to be within the image bounds!")
-        }
-        let color: u8 = img.get_pixel(x, y).channels().0;
-        if color != 0 {
-            Ok(Some(Coordinates::new(x, y)))
         } else {
-            Ok(None)
+            let color: u8 = img.get_pixel(x as u32, y as u32).data[0];
+            if color != 0 {
+                Ok(Some(Coordinates::new(x as usize, y as usize)))
+            } else {
+                Ok(None)
+            }
         }
     }
 
+    ///Calculates a new position in the current direction
+    ///**However make sure the new position is within the image bounds afterwards!**
     pub fn new_position(&self, pos: Coordinates) -> Coordinates {
-        let cur = self as i32;
-        let y = pos.y + DIR_Y[cur];
-        let x = pos.x + DIR_X[cur];
-        Coordinates::new(x, y)
+        let cur = *self as i32;
+        let y = pos.y as i32 + DIR_Y[cur as usize];
+        let x = pos.x as i32 + DIR_X[cur as usize];
+        Coordinates::new(x as usize, y as usize)
     }
 
     pub fn clockwise_entry_direction(&self) -> Direction {
-        let val = self as i32;
-        let ret: ENTRY = unsafe{ std::mem::transmute(val) } //This is really unsafe
-        ret
+        let val = *self as i32;
+        unsafe{ 
+            let ret = std::mem::transmute(val);
+            return ret;
+        }; //This is really unsafe
+        panic!("Unsafe block in Clockwise Entry Direction failed!");
     }
 
     pub fn counter_clockwise_entry_direction(&self) -> Direction {
-        let val = self as i32;
-        let ret: CCENTRY = unsafe{ std::mem::transmute(val) } //This is really unsafe
-        ret
+        let val = *self as i32;
+        unsafe{ 
+            let ret = std::mem::transmute(val);
+            return ret;
+        }; //This is really unsafe
+        panic!("Unsafe block in Counter Clockwise Entry Direction failed!");
     }
 }
 
 fn fromTo(from: Coordinates, to: Coordinates) -> Result<Direction, &'static str> {
-    if (from == to) {
+    if from == to {
         Err("From and To positions are the same!")
-    }
-    Ok(if from.eq_y(to) {
-        if from.lt_x(to) {
-            Direction::East
-        } else {
-            Direction::West
-        }
-    } else if from.lt_y(to) {
-        if from.eq_x(to) {
-            Direction::South
-        } else if (from.lt_x(to)) {
-            Direction::SouthEast
-        } else {
-            Direction::SouthWest
-        }
     } else {
-        if from.eq_x(to) {
-            Direction::North
-        } else if from.lt_x(to) {
-            Direction::NorthEast
+        Ok(if from.eq_y(&to) {
+            if from.lt_x(&to) {
+                Direction::East
+            } else {
+                Direction::West
+            }
+        } else if from.lt_y(&to) {
+            if from.eq_x(&to) {
+                Direction::South
+            } else if from.lt_x(&to) {
+                Direction::SouthEast
+            } else {
+                Direction::SouthWest
+            }
         } else {
-            Direction::NorthWest
-        }
-    })
+            if from.eq_x(&to) {
+                Direction::North
+            } else if from.lt_x(&to) {
+                Direction::NorthEast
+            } else {
+                Direction::NorthWest
+            }
+        })
+    }
 }

@@ -13,7 +13,7 @@ pub struct Canny{
 }
 
 impl Canny {
-    pub fn new(lowThreshold: f32, highThreshold: f32, path: PathBuf, context: &Context, queue: Queue, dim: (u32, u32)) -> Canny {
+    pub fn new(low_threshold: f32, high_threshold: f32, path: PathBuf, context: &Context, queue: Queue, dim: (u32, u32)) -> Canny {
         let program = Program::builder().src_file(path.join("canny_edge_detection.cl")).build(context).unwrap();
 
         let kdim = dim.0.checked_mul(dim.1).unwrap().checked_mul(mem::size_of::<u8>() as u32).unwrap();
@@ -38,7 +38,7 @@ impl Canny {
 
         let buffers = vec![prev_buffer, next_buffer];
 
-        Canny { buffers: buffers, theta_buffer: theta_buffer, buffer_index: 0, thresholds: (lowThreshold, highThreshold), program: program, queue: queue, dim: dim }
+        Canny { buffers: buffers, theta_buffer: theta_buffer, buffer_index: 0, thresholds: (low_threshold, high_threshold), program: program, queue: queue, dim: dim }
     }
 
     fn next_buffer(&self) -> &Buffer<u8> {

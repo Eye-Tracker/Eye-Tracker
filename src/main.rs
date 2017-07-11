@@ -1,3 +1,5 @@
+#![feature(box_syntax, box_patterns)]
+
 extern crate image;
 extern crate ocl;
 extern crate find_folder;
@@ -5,6 +7,7 @@ extern crate time;
 extern crate texture;
 extern crate piston_window;
 extern crate fps_counter;
+extern crate indextree;
 
 #[cfg(feature = "camera_support")]
 extern crate camera_capture;
@@ -12,8 +15,8 @@ extern crate camera_capture;
 mod image_loader;
 mod opencl;
 mod streamer;
+mod contour_detection;
 
-use image::ImageBuffer;
 use image::ConvertBuffer;
 use fps_counter::FPSCounter;
 
