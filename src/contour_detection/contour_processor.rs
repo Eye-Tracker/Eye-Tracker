@@ -36,7 +36,6 @@ impl ContourProcessor {
                 let is_outer = self.is_outer_border_start(img, x as i32, y as i32);
                 let is_hole = self.is_hole_border_start(img, x as i32, y as i32);
                 if is_outer || is_hole {
-                    
                     let mut from = Coordinates::new(x as usize, y as usize);
                     let mut border = ContourBuilder::new().set_start(from);
 
@@ -131,7 +130,7 @@ impl ContourProcessor {
 
     fn is_hole_border_start(&self, img: &GrayImage, x: i32, y: i32) -> bool {
         let color: u8 = img.get_pixel(x as u32, y as u32).data[0];
-        let t = if y == img.width() as i32 - 1 { y - 1} else { y };
+        let t = if y == img.height() as i32 - 1 { y - 1} else { y };
         let color1: u8 = img.get_pixel(x as u32, (t + 1) as u32).data[0];
         color != 0 && (y == (img.width() - 1) as i32 || color1 == 0)
     }
