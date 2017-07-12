@@ -20,6 +20,8 @@ mod contour_detection;
 use image::ConvertBuffer;
 use fps_counter::FPSCounter;
 
+use contour_detection::contour_processor::ContourProcessor;
+
 #[cfg(feature = "camera_support")]
 use streamer::webcam_stream::WebcamStream;
 
@@ -73,6 +75,7 @@ fn main() {
             dim.0 as f64 / 3.0,
             dim.0 as f64 / 3.0];
 
+    let contour_finder = ContourProcessor;
     while let Some(e) = window.next() {
         let mut fps = 0;
         if let Some(frame) = iterator.next() {
@@ -81,7 +84,12 @@ fn main() {
             let grayscaled: image::GrayImage = frame.convert();
             let result = canny_edge.execute_edge_detection(grayscaled.into_raw());
 
-            let rgba: image::RgbaImage = image::GrayImage::from_raw(dim.0, dim.1, result).expect("ImageBuffer couldn't be created").convert();
+            let gray_result = image::GrayImage::from_raw(dim.0, dim.1, result).expect("ImageBuffer couldn't be created");
+            let contours = contour_finder.find_contours(&gray_result);
+
+            println!("Found {} contours.", contours.len());
+            
+            let rgba: image::RgbaImage = gray_result.convert();
 
             if let Some(mut t) = tex {
                 t.update(&mut window.encoder, &rgba).unwrap();

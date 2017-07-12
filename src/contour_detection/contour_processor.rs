@@ -2,16 +2,16 @@ use contour_detection::contour::{Contour, ContourBuilder};
 use contour_detection::shape::{Rectangle, Shape, Polygon, Points};
 use contour_detection::contour_follower::{FollowingStrategy, SuzukiStrategy};
 use contour_detection::{ContourType, Coordinates};
+use contour_detection::direction;
 use image::GrayImage;
 use indextree::Arena;
+use indextree;
 use std::collections::HashMap;
 
-pub struct ContourProcessor{
-    remove_min_child_threshold: f64,
-}
+pub struct ContourProcessor;
 
 impl ContourProcessor {
-    pub fn find_contours(&mut self, img: &GrayImage) {
+    pub fn find_contours(&self, img: &GrayImage) -> Vec<Contour> {
         let bounds = Rectangle::new(0, 0, img.width() as usize, img.height() as usize);
         
         let arena = &mut Arena::<Contour>::new();
@@ -57,10 +57,20 @@ impl ContourProcessor {
                     let mut points = Vec::new();
                     border_follow.directed_contour(img, start, from, |(coord, checked)| {
                         points.push(coord);
+                        if self.crosses_east_border(img, checked, coord) {
+                            //img.set
+                        } else if img.get_pixel(coord.x as u32, coord.y as u32).data[0] == 255 {
+                            //img.set
+                        }
                     });
 
+                    if points.len() == 0 {
+                        points.push(start);
+                        //img.setPixel
+                    }
+
+                    let contour = arena.new_node(border.set_points(points).finish());
                     if is_outer {
-                        let contour = arena.new_node(border.finish());
                         if let Some(border_prime) = borderMap.get(&lnbd) {
                             match arena[border_prime.clone()].data.ctype {
                                 Some(ContourType::Hole) => {
@@ -74,28 +84,55 @@ impl ContourProcessor {
                             }
                             
                         };
-
-                        borderMap.insert(nbd, contour);
+                    } else {
+                        if let Some(border_prime) = borderMap.get(&lnbd) {
+                            match arena[border_prime.clone()].data.ctype {
+                                Some(ContourType::Hole) => {
+                                    let p_parent = border_prime.ancestors(arena).next().unwrap();
+                                    p_parent.append(contour, arena);
+                                    
+                                },
+                                Some(ContourType::Outer) => {
+                                    border_prime.append(contour, arena);
+                                },
+                                None => panic!("Type should always been set!"),
+                            }
+                        }
                     }
-                    
 
+                    borderMap.insert(nbd, contour);
+                }
+                if cur_pixel != 0 && cur_pixel != 255 {
+                    lnbd = cur_pixel as i32;
                 }
             }
         }
         
 
+        root.traverse(arena).map(|ne| {
+                match ne {
+                    indextree::NodeEdge::Start(val) => arena[val].clone().data,
+                    indextree::NodeEdge::End(val) => arena[val].clone().data,
+                }
+            }).collect::<Vec<Contour>>()
+    }
 
+    fn crosses_east_border(&self, img: &GrayImage, checked: [bool; 8], p: Coordinates) -> bool {
+        let b = checked[direction::fromTo(p, Coordinates::new(p.x + 1, p.y)).unwrap().as_value() as usize];
+        img.get_pixel(p.x as u32, p.y as u32).data[0] != 0 && (p.x == (img.width() - 1) as usize || b)
     }
 
     fn is_outer_border_start(&self, img: &GrayImage, x: i32, y: i32) -> bool {
         let color: u8 = img.get_pixel(x as u32, y as u32).data[0];
-        let color1: u8 = img.get_pixel(x as u32, (y - 1) as u32).data[0];
+        let t = if y == 0 { y + 1} else { y };
+        let color1: u8 = img.get_pixel(x as u32, (t - 1) as u32).data[0];
         color != 0 && (y == 0 || color1 == 0)
     }
 
     fn is_hole_border_start(&self, img: &GrayImage, x: i32, y: i32) -> bool {
         let color: u8 = img.get_pixel(x as u32, y as u32).data[0];
-        let color1: u8 = img.get_pixel(x as u32, (y + 1) as u32).data[0];
+        let t = if y == img.width() as i32 - 1 { y - 1} else { y };
+        let color1: u8 = img.get_pixel(x as u32, (t + 1) as u32).data[0];
         color != 0 && (y == (img.width() - 1) as i32 || color1 == 0)
     }
 }
