@@ -3,10 +3,10 @@ use contour_detection::ContourType;
 use contour_detection::shape::{PointList, Polygon, Rectangle, Shape, Points};
 
 pub struct Contour {
-    ctype: Option<ContourType>,
-    start: Coordinates,
-    points: Polygon,
-    bounds: Rectangle,
+    pub ctype: Option<ContourType>,
+    pub start: Coordinates,
+    pub points: Polygon,
+    pub bounds: Rectangle,
 }
 
 pub struct ContourBuilder {
@@ -27,6 +27,11 @@ impl ContourBuilder {
 
     pub fn set_start(mut self, c: Coordinates) -> Self {
         self.start = c;
+        self
+    }
+
+    pub fn set_start_from_val(mut self, x: usize, y: usize) -> Self {
+        self.start = Coordinates::new(x,y);
         self
     }
 

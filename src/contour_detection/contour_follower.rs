@@ -1,25 +1,25 @@
-use image::RgbaImage;
+use image::GrayImage;
 use contour_detection::Coordinates;
 use contour_detection::direction::Direction;
 use contour_detection;
 use std;
 
 pub trait FollowingStrategy {
-    fn contour(&self, img: RgbaImage, start: Coordinates, from: Coordinates) -> Vec<Coordinates> {
+    fn contour(&self, img: &GrayImage, start: Coordinates, from: Coordinates) -> Vec<Coordinates> {
         let mut ret =Vec::new();
         self.do_contouring(img, start, from, |c| ret.push(c));
         return ret;
     }
 
-    fn do_contouring<F>(&self, img: RgbaImage, start: Coordinates, from: Coordinates, 
+    fn do_contouring<F>(&self, img: &GrayImage, start: Coordinates, from: Coordinates, 
                             func: F) -> () where F: FnMut(Coordinates) -> (); 
 }
 
-struct SuzukiStrategy;
+pub struct SuzukiStrategy;
 
-impl FollowingStrategy for SuzukiStrategy {
-    fn do_contouring<F>(&self, img: RgbaImage, start: Coordinates, from: Coordinates, 
-                            mut func: F) -> () where F: FnMut(Coordinates) -> () {
+impl SuzukiStrategy {
+    pub fn directed_contour<F>(&self, img: &GrayImage, start: Coordinates, from: Coordinates, 
+                            mut func: F) -> () where F: FnMut((Coordinates, [bool; 8])) -> () {
         let mut dir = contour_detection::direction::fromTo(start, from).unwrap();
         let mut trace = dir.clockwise();
         let mut new_active: Option<Coordinates> = None;
@@ -40,9 +40,9 @@ impl FollowingStrategy for SuzukiStrategy {
 
         let mut temp = new_active.unwrap(); //This can't be None anymore
         let mut temp2 = start;
-        let mut checked = vec![false, false, false, false, false, false, false, false]; //N , NE ,E ,SE ,S ,SW ,W ,NW
+        let mut checked = [false, false, false, false, false, false, false, false]; //N , NE ,E ,SE ,S ,SW ,W ,NW
         
-        fn reset_checked(arr: &mut Vec<bool>) {
+        fn reset_checked(arr: &mut [bool; 8]) {
             for i in 0..arr.len() {
                 arr[i] = false;
             }
@@ -66,13 +66,18 @@ impl FollowingStrategy for SuzukiStrategy {
                 trace = trace.counter_clockwise();
             }
 
-            func(temp2);
+            func((temp2, checked));
             if temp3.unwrap() == start && temp2 == from {
                 break;
             }
             temp = temp2;
             temp2 = temp3.unwrap();
         }
-
+    }
+}
+impl FollowingStrategy for SuzukiStrategy {
+    fn do_contouring<F>(&self, img: &GrayImage, start: Coordinates, from: Coordinates, 
+                            mut func: F) -> () where F: FnMut(Coordinates) -> () {
+        self.directed_contour(img, start, from, |(c, _)| func(c));
     }
 }

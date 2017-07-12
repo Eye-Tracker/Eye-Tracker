@@ -1,4 +1,4 @@
-use image::RgbaImage;
+use image::GrayImage;
 use contour_detection::Coordinates;
 use std;
 
@@ -51,7 +51,7 @@ impl Direction {
         panic!("Unsafe block in Counter Clockwise Direction failed!");
     }
 
-    pub fn active(&self, pos: Coordinates, img: &RgbaImage) -> Result<Option<Coordinates>, &'static str> {
+    pub fn active(&self, pos: Coordinates, img: &GrayImage) -> Result<Option<Coordinates>, &'static str> {
         let cur = *self as i32;
         let y = pos.y as i32 + DIR_Y[cur as usize];
         let x = pos.x as i32 + DIR_X[cur as usize];
