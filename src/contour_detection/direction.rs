@@ -2,9 +2,9 @@ use image::RgbaImage;
 use contour_detection::Coordinates;
 use std;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 #[repr(i32)]
-enum Direction {
+pub enum Direction {
     North,
     NorthEast,
     East,
@@ -24,6 +24,10 @@ static CCENTRY: &'static [Direction] = &[Direction::East, Direction::South,
     Direction::South, Direction::West, Direction::West, Direction::North,
     Direction::North, Direction::East];
 impl Direction {
+    pub fn as_value(&self) -> i32 {
+        *self as i32
+    }
+
     pub fn clockwise(&self) -> Direction {
         let val = *self as i32;
         unsafe{ 
@@ -47,7 +51,7 @@ impl Direction {
         panic!("Unsafe block in Counter Clockwise Direction failed!");
     }
 
-    pub fn active(&self, pos: Coordinates, img: RgbaImage) -> Result<Option<Coordinates>, &'static str> {
+    pub fn active(&self, pos: Coordinates, img: &RgbaImage) -> Result<Option<Coordinates>, &'static str> {
         let cur = *self as i32;
         let y = pos.y as i32 + DIR_Y[cur as usize];
         let x = pos.x as i32 + DIR_X[cur as usize];
@@ -91,7 +95,7 @@ impl Direction {
     }
 }
 
-fn fromTo(from: Coordinates, to: Coordinates) -> Result<Direction, &'static str> {
+pub fn fromTo(from: Coordinates, to: Coordinates) -> Result<Direction, &'static str> {
     if from == to {
         Err("From and To positions are the same!")
     } else {

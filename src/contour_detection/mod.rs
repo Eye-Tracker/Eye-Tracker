@@ -2,6 +2,7 @@ pub mod direction;
 pub mod shape;
 pub mod contour;
 pub mod contour_processor;
+pub mod contour_follower;
 
 pub enum ContourType {
     Hole, //Hole with an enclosing contour
