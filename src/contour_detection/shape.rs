@@ -4,10 +4,7 @@ use std::cell::RefCell;
 
 pub trait Shape {
     fn calculate_area(&self) -> f64;
-    //fn calculate_perimeter(&self) -> f64;
     fn as_polygon(&self) -> Polygon;
-    //fn intersection_area(&self, shape: Shape) -> f64;
-    //fn is_convex(&self);
 }
 
 pub struct PointList {
@@ -22,13 +19,7 @@ impl Clone for PointList {
 }
 
 pub trait Points {
-    //fn translate(&self) -> Self;
-    //fn rotate(&self, point: Coordinates, origin: Coordinates, angle: f64) -> Self;
-    //fn scale(&self) -> Self;
-    //fn scale_x(&self) -> Self;
-    //fn scale_y(&self) -> Self;
     fn calculate_bounding_box(&self) -> Rectangle;
-    //fn calculate_centroid(&self) -> Coordinates;
     fn get_vertices(&self) -> Vec<Coordinates>;
     fn min_x(&self) -> Option<usize>;
     fn min_y(&self) -> Option<usize>;
@@ -105,7 +96,7 @@ pub struct Polygon {
 
 impl Shape for Polygon {
     fn as_polygon(&self) -> Polygon {
-        self.clone() //TODO implement clone
+        self.clone()
     }
 
     fn calculate_area(&self) -> f64 {
@@ -182,17 +173,6 @@ impl Rectangle {
         let pl = PointList::new(create_points(x, y, width, height));
         Rectangle{ pointlist: pl, x: x, y: y, width: width, height: height }
     }
-
-   // pub fn new(coords: Coordinates, width: usize, height: usize) {
-   //     Rectangle::new(coords.x, coords.y, width, height)
-    //}
-
-    // Create a Rectangle from top right (x,y) coordinates and bottom right (x,y) coordinates
-    //pub fn new(topLeft: Coordinates, bottomRight: Coordinates) -> Self {
-   //     Rectangle::new(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y)
-   // }
-
-     
 }
 
 impl std::ops::Deref for Rectangle {
@@ -206,11 +186,7 @@ impl Shape for Rectangle {
     fn calculate_area(&self) -> f64 {
         (self.width * self.height) as f64
     }
-    //fn calculate_area(&self) -> f64;
-    //fn calculate_perimeter(&self) -> f64;
     fn as_polygon(&self) -> Polygon {
         Polygon::new(self.pointlist.points.borrow().to_vec())
     }
-    //pub fn intersection_area(&self, shape: Shape) -> f64;
-    //pub fn is_convex(&self);
 }
