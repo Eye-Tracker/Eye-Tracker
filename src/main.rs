@@ -8,6 +8,8 @@ extern crate texture;
 extern crate piston_window;
 extern crate fps_counter;
 extern crate indextree;
+#[macro_use]
+extern crate conrod;
 
 #[cfg(feature = "camera_support")]
 extern crate camera_capture;
@@ -16,9 +18,14 @@ mod image_loader;
 mod opencl;
 mod streamer;
 mod contour_detection;
+mod gui;
 
 use image::ConvertBuffer;
 use fps_counter::FPSCounter;
+use std::thread;
+use std::sync::mpsc::{Sender, Receiver};
+use std::sync::mpsc;
+use std::sync::{Arc, Mutex};
 
 use contour_detection::contour_processor::ContourProcessor;
 
@@ -46,11 +53,12 @@ fn setup_streamer() -> (Box<Iterator<Item = image::RgbImage>>, (u32, u32)) {
     (iterator, dim)
 }
 
+type ConfigData = (f32, f32, f64);
 fn main() {
     let (mut iterator, dim) = setup_streamer();
     let processor = opencl::imgproc::setup(true, dim);
     
-    let mut canny_edge = processor.setup_canny_edge_detection(10.0, 70.0);
+    let mut canny_edge = processor.setup_canny_edge_detection();
 
     let opengl = OpenGL::V3_2;
     let mut window: PistonWindow =
@@ -75,17 +83,26 @@ fn main() {
             dim.0 as f64 / 3.0,
             dim.0 as f64 / 3.0];
 
-    let contour_finder = ContourProcessor::new(10f64);
+    let app = Arc::new(Mutex::new(gui::App::new(10.0, 70.0, 10.0)));
+    let data = app.clone();
+    thread::spawn(move || {
+        gui::draw_gui(data);
+    });
+
+    let contour_finder = ContourProcessor;
     while let Some(e) = window.next() {
         let mut fps = 0;
+        let unlocked = app.lock().unwrap();
+        let (low, high, size) = (unlocked.low_threshold, unlocked.high_threshold, unlocked.size_filter);
+        println!("New Config: {} | {} | {}", low, high, size);
         if let Some(frame) = iterator.next() {
             fps = fpsc.tick();
 
             let grayscaled: image::GrayImage = frame.convert();
-            let result = canny_edge.execute_edge_detection(grayscaled.into_raw());
+            let result = canny_edge.execute_edge_detection(grayscaled.into_raw(), low, high);
 
             let gray_result = image::GrayImage::from_raw(dim.0, dim.1, result).expect("ImageBuffer couldn't be created");
-            let contours = contour_finder.find_contours(&gray_result);
+            let contours = contour_finder.find_contours(&gray_result, size);
 
             println!("Found {} contours.", contours.len());
             

@@ -6,14 +6,13 @@ pub struct Canny{
     buffers: Vec<Buffer<u8>>,
     theta_buffer: Buffer<u8>,
     buffer_index: usize,
-    thresholds: (f32, f32),
     program: Program,
     queue: Queue,
     dim: (u32, u32),
 }
 
 impl Canny {
-    pub fn new(low_threshold: f32, high_threshold: f32, path: PathBuf, context: &Context, queue: Queue, dim: (u32, u32)) -> Canny {
+    pub fn new(path: PathBuf, context: &Context, queue: Queue, dim: (u32, u32)) -> Canny {
         let program = Program::builder().src_file(path.join("canny_edge_detection.cl")).build(context).unwrap();
 
         let kdim = dim.0.checked_mul(dim.1).unwrap().checked_mul(mem::size_of::<u8>() as u32).unwrap();
@@ -38,7 +37,7 @@ impl Canny {
 
         let buffers = vec![prev_buffer, next_buffer];
 
-        Canny { buffers: buffers, theta_buffer: theta_buffer, buffer_index: 0, thresholds: (low_threshold, high_threshold), program: program, queue: queue, dim: dim }
+        Canny { buffers: buffers, theta_buffer: theta_buffer, buffer_index: 0, program: program, queue: queue, dim: dim }
     }
 
     fn next_buffer(&self) -> &Buffer<u8> {
@@ -99,14 +98,14 @@ impl Canny {
         self.advance_buffer();
     }
 
-    fn execute_hyst(&mut self) {
+    fn execute_hyst(&mut self, low: f32, high: f32) {
         let kernel = Kernel::new("hysteresis_kernel", &self.program).unwrap()
             .queue(self.queue.clone())
             .gws([self.dim.0, self.dim.1])
             .arg_buf(self.prev_buffer())
             .arg_buf(self.next_buffer())
-            .arg_scl(self.thresholds.0)
-            .arg_scl(self.thresholds.1)
+            .arg_scl(low)
+            .arg_scl(high)
             .arg_scl(self.dim.0)
             .arg_scl(self.dim.1);
 
@@ -115,7 +114,7 @@ impl Canny {
         self.advance_buffer();
     }
 
-    pub fn execute_edge_detection(&mut self, data: Vec<u8>) -> Vec<u8> {
+    pub fn execute_edge_detection(&mut self, data: Vec<u8>, low: f32, high: f32) -> Vec<u8> {
         //Upload to old buffer
         self.prev_buffer().cmd().write(&data).enq().unwrap(); 
 
@@ -125,7 +124,7 @@ impl Canny {
 
         self.execute_nms();
 
-        self.execute_hyst();
+        self.execute_hyst(low, high);
 
         let mut res = vec![0u8; self.prev_buffer().len()];
         self.prev_buffer().read(&mut res).enq().unwrap();

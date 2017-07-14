@@ -1,6 +1,6 @@
 use contour_detection::contour::{Contour, ContourBuilder};
-use contour_detection::shape::{Rectangle, Shape, Polygon, Points};
-use contour_detection::contour_follower::{FollowingStrategy, SuzukiStrategy};
+use contour_detection::shape::{Rectangle, Shape, Points};
+use contour_detection::contour_follower::SuzukiStrategy;
 use contour_detection::{ContourType, Coordinates};
 use contour_detection::direction;
 use image::GrayImage;
@@ -8,16 +8,10 @@ use indextree::Arena;
 use indextree;
 use std::collections::HashMap;
 
-pub struct ContourProcessor {
-    min_relative_child_prop: f64,
-}
+pub struct ContourProcessor;
 
 impl ContourProcessor {
-    pub fn new(min_relative_child_prop: f64) -> Self {
-        ContourProcessor{ min_relative_child_prop: min_relative_child_prop }
-    }
-
-    pub fn find_contours(&self, img: &GrayImage) -> Vec<Contour> {
+    pub fn find_contours(&self, img: &GrayImage, min_relative_child_prop: f64) -> Vec<Contour> {
         let bounds = Rectangle::new(0, 0, img.width() as usize, img.height() as usize);
         
         let arena = &mut Arena::<Contour>::new();
@@ -32,8 +26,8 @@ impl ContourProcessor {
         let mut nbd = 1i32;
         let mut lnbd = 1i32;
 
-        let mut borderMap = HashMap::new();
-        borderMap.insert(lnbd, root);
+        let mut border_map = HashMap::new();
+        border_map.insert(lnbd, root);
 
         for y in 0..img.height() {
             lnbd = 1i32;
@@ -76,7 +70,7 @@ impl ContourProcessor {
 
                     let contour = arena.new_node(border.set_points(points).finish());
                     if is_outer {
-                        if let Some(border_prime) = borderMap.get(&lnbd) {
+                        if let Some(border_prime) = border_map.get(&lnbd) {
                             match arena[border_prime.clone()].data.ctype {
                                 Some(ContourType::Hole) => {
                                     border_prime.append(contour, arena)
@@ -90,7 +84,7 @@ impl ContourProcessor {
                             
                         };
                     } else {
-                        if let Some(border_prime) = borderMap.get(&lnbd) {
+                        if let Some(border_prime) = border_map.get(&lnbd) {
                             match arena[border_prime.clone()].data.ctype {
                                 Some(ContourType::Hole) => {
                                     let p_parent = border_prime.ancestors(arena).next().unwrap();
@@ -105,7 +99,7 @@ impl ContourProcessor {
                         }
                     }
 
-                    borderMap.insert(nbd, contour);
+                    border_map.insert(nbd, contour);
                 }
                 if cur_pixel != 0 && cur_pixel != 255 {
                     lnbd = cur_pixel as i32;
@@ -113,8 +107,8 @@ impl ContourProcessor {
             }
         }
 
-        if self.min_relative_child_prop > 0f64 {
-            self.remove_small(arena, &root);
+        if min_relative_child_prop > 0f64 {
+            self.remove_small(arena, &root, min_relative_child_prop);
         }
         
 
@@ -145,13 +139,13 @@ impl ContourProcessor {
         color != 0 && (y == (img.width() - 1) as i32 || color1 == 0)
     }
 
-    fn remove_small(&self, arena: &mut Arena<Contour>, root: &indextree::NodeId) {
+    fn remove_small(&self, arena: &mut Arena<Contour>, root: &indextree::NodeId, min_relative_child_prop: f64) {
         let mut list = Vec::new();
         list.push(root.clone());
         while list.len() != 0 {
             let ret = list.remove(0);
             if let Some(par) = ret.ancestors(arena).next() {
-                if arena[ret].data.bounds.calculate_area() / arena[par].data.bounds.calculate_area() < self.min_relative_child_prop {
+                if arena[ret].data.bounds.calculate_area() / arena[par].data.bounds.calculate_area() < min_relative_child_prop {
                     ret.detach(arena);
                 }
             } else {

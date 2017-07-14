@@ -1,8 +1,6 @@
 use image::GrayImage;
 use contour_detection::Coordinates;
-use contour_detection::direction::Direction;
 use contour_detection;
-use std;
 
 pub trait FollowingStrategy {
     fn contour(&self, img: &GrayImage, ij: Coordinates, i2j2: Coordinates) -> Vec<Coordinates> {
