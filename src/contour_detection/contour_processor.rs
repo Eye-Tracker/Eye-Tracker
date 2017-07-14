@@ -8,9 +8,15 @@ use indextree::Arena;
 use indextree;
 use std::collections::HashMap;
 
-pub struct ContourProcessor;
+pub struct ContourProcessor {
+    min_relative_child_prop: f64,
+}
 
 impl ContourProcessor {
+    pub fn new(min_relative_child_prop: f64) -> Self {
+        ContourProcessor{ min_relative_child_prop: min_relative_child_prop }
+    }
+
     pub fn find_contours(&self, img: &GrayImage) -> Vec<Contour> {
         let bounds = Rectangle::new(0, 0, img.width() as usize, img.height() as usize);
         
@@ -106,6 +112,10 @@ impl ContourProcessor {
                 }
             }
         }
+
+        if self.min_relative_child_prop > 0f64 {
+            self.remove_small(arena, &root);
+        }
         
 
         root.traverse(arena).map(|ne| {
@@ -133,5 +143,21 @@ impl ContourProcessor {
         let t = if y == img.height() as i32 - 1 { y - 1} else { y };
         let color1: u8 = img.get_pixel(x as u32, (t + 1) as u32).data[0];
         color != 0 && (y == (img.width() - 1) as i32 || color1 == 0)
+    }
+
+    fn remove_small(&self, arena: &mut Arena<Contour>, root: &indextree::NodeId) {
+        let mut list = Vec::new();
+        list.push(root.clone());
+        while list.len() != 0 {
+            let ret = list.remove(0);
+            if let Some(par) = ret.ancestors(arena).next() {
+                if arena[ret].data.bounds.calculate_area() / arena[par].data.bounds.calculate_area() < self.min_relative_child_prop {
+                    ret.detach(arena);
+                }
+            } else {
+                let mut childs: Vec<indextree::NodeId> = ret.children(arena).collect();
+                list.append(&mut childs);
+            }
+        }
     }
 }

@@ -75,7 +75,7 @@ fn main() {
             dim.0 as f64 / 3.0,
             dim.0 as f64 / 3.0];
 
-    let contour_finder = ContourProcessor;
+    let contour_finder = ContourProcessor::new(10f64);
     while let Some(e) = window.next() {
         let mut fps = 0;
         if let Some(frame) = iterator.next() {

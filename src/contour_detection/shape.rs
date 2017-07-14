@@ -1,9 +1,9 @@
 use contour_detection::Coordinates;
 use std;
+use std::cell::RefCell;
 
 pub trait Shape {
-    fn is_inside(&self, p: Coordinates) -> bool;
-    //fn calculate_area(&self) -> f64;
+    fn calculate_area(&self) -> f64;
     //fn calculate_perimeter(&self) -> f64;
     fn as_polygon(&self) -> Polygon;
     //fn intersection_area(&self, shape: Shape) -> f64;
@@ -11,13 +11,13 @@ pub trait Shape {
 }
 
 pub struct PointList {
-    pub points: Vec<Coordinates>
+    pub points: RefCell<Vec<Coordinates>>
 }
 
 impl Clone for PointList {
     fn clone(&self) -> PointList {
-        let points = self.points.to_vec();
-        PointList { points: points }
+        let points = self.points.borrow().to_vec();
+        PointList { points: RefCell::new(points) }
     }
 }
 
@@ -41,7 +41,7 @@ pub trait Points {
 
 impl PointList {
     pub fn new(points: Vec<Coordinates>) -> PointList {
-        PointList{ points: points }
+        PointList{ points: RefCell::new(points) }
     }
 }
 
@@ -51,23 +51,23 @@ impl Points for PointList {
     }
 
     fn min_x(&self) -> Option<usize> {
-        self.points.iter()
+        self.points.borrow().iter()
             .map(|&p| p.x)
             .min()
     }
 
     fn min_y(&self) -> Option<usize> {
-        self.points.iter()
+        self.points.borrow().iter()
             .map(|&p| p.y)
             .min()
     }
     fn max_x(&self) -> Option<usize> {
-        self.points.iter()
+        self.points.borrow().iter()
             .map(|&p| p.x)
             .max()
     }
     fn max_y(&self) -> Option<usize> {
-        self.points.iter()
+        self.points.borrow().iter()
             .map(|&p| p.y)
             .max()
     }
@@ -90,11 +90,11 @@ impl Points for PointList {
     }
 
     fn get_vertices(&self) -> Vec<Coordinates> {
-        self.points.to_vec()
+        self.points.borrow().to_vec()
     }
 
     fn add_points(&mut self, list: Vec<Coordinates>) {
-        self.points.extend(list.iter().cloned());
+        self.points.borrow_mut().extend(list.iter().cloned());
     }
 }
 
@@ -108,8 +108,8 @@ impl Shape for Polygon {
         self.clone() //TODO implement clone
     }
 
-    fn is_inside(&self, p: Coordinates) -> bool {
-        false
+    fn calculate_area(&self) -> f64 {
+        self.calculate_signed_area().abs()
     }
 }
 
@@ -125,8 +125,36 @@ impl Polygon {
         Polygon{ pointlist: PointList::new(list) }
     }
 
-    pub fn get_vertices(&self) ->  Vec<Coordinates> {
-        self.pointlist.points.to_vec()
+    fn calculate_signed_area(&self) -> f64 {
+        let closed = self.is_closed();
+        let mut area = 0f64;
+
+        let mut clone = self.clone();
+        if !closed {
+            clone.close();
+        }
+
+        for k in 0..(clone.points.borrow().len() - 1) {
+            let ik = clone.points.borrow()[k].x;
+            let jk = clone.points.borrow()[k].y;
+            let ik1 = clone.points.borrow()[k+1].x;
+            let jk1 = clone.points.borrow()[k+1].y;
+
+            area = area + (ik * jk1 - ik1 * jk) as f64;
+        }
+
+        return 0.5 * area;
+    }
+
+    fn is_closed(&self) -> bool {
+        self.points.borrow().len() > 0 && self.points.borrow()[0].x == self.points.borrow().last().unwrap().x
+            && self.points.borrow()[0].y == self.points.borrow().last().unwrap().y
+    }
+
+    fn close(&mut self) {
+        if !self.is_closed() && self.points.borrow().len() > 0 {
+            self.points.borrow_mut().push(self.points.borrow()[0]);
+        }
     }
 }
 
@@ -175,14 +203,13 @@ impl std::ops::Deref for Rectangle {
 }
 
 impl Shape for Rectangle {
-    fn is_inside(&self, p: Coordinates) -> bool {
-        p.x >= self.x && p.x <= self.x + self.width && 
-            p.y >= self.y && p.y <= self.y + self.height
+    fn calculate_area(&self) -> f64 {
+        (self.width * self.height) as f64
     }
     //fn calculate_area(&self) -> f64;
     //fn calculate_perimeter(&self) -> f64;
     fn as_polygon(&self) -> Polygon {
-        Polygon::new(self.pointlist.points.to_vec())
+        Polygon::new(self.pointlist.points.borrow().to_vec())
     }
     //pub fn intersection_area(&self, shape: Shape) -> f64;
     //pub fn is_convex(&self);
