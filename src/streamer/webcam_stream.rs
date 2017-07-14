@@ -9,7 +9,7 @@ pub struct WebcamStream{
 
 impl Stream for WebcamStream {
     fn setup() -> WebcamStream {
-        WebcamStream{ dim: (1280, 720) }
+        WebcamStream{ dim: (640, 480) }
     }
 
     fn fetch_images(&self) -> Box<Iterator<Item = image::RgbImage>> {
