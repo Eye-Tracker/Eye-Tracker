@@ -94,7 +94,6 @@ fn main() {
         let mut fps = 0;
         let unlocked = app.lock().unwrap();
         let (low, high, size) = (unlocked.low_threshold, unlocked.high_threshold, unlocked.size_filter);
-        println!("New Config: {} | {} | {}", low, high, size);
         if let Some(frame) = iterator.next() {
             fps = fpsc.tick();
 
