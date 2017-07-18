@@ -101,7 +101,7 @@ fn main() {
             let gray_result = image::GrayImage::from_raw(dim.0, dim.1, result).expect("ImageBuffer couldn't be created");
             let contours = contour_finder.find_contours(&gray_result, size);
             
-            let mut rgba: image::RgbaImage = gray_result.convert();
+            let mut rgba: image::RgbaImage = frame.convert();
 
             for c in contours {
                 for p in c.points.get_vertices() {
