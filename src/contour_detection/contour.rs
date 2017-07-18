@@ -2,7 +2,7 @@ use contour_detection::Coordinates;
 use contour_detection::ContourType;
 use contour_detection::shape::{Polygon, Rectangle, Points};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Contour {
     pub ctype: Option<ContourType>,
     pub start: Coordinates,

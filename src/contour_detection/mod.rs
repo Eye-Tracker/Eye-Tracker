@@ -4,7 +4,7 @@ pub mod contour;
 pub mod contour_processor;
 pub mod contour_follower;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ContourType {
     Hole, //Hole with an enclosing contour
     Outer, //Outer contour

@@ -12,7 +12,7 @@ pub struct ContourProcessor;
 
 impl ContourProcessor {
     pub fn find_contours(&self, img: &GrayImage, min_relative_child_prop: f64) -> Vec<Contour> {
-        let bounds = Rectangle::new(0, 0, img.width() as usize, img.height() as usize);
+        let bounds = Rectangle::new(0, 0, (img.width() - 1) as usize, (img.height() - 1) as usize);
         
         let arena = &mut Arena::<Contour>::new();
 

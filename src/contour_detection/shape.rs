@@ -7,6 +7,7 @@ pub trait Shape {
     fn as_polygon(&self) -> Polygon;
 }
 
+#[derive(Debug)]
 pub struct PointList {
     pub points: RefCell<Vec<Coordinates>>
 }
@@ -89,9 +90,9 @@ impl Points for PointList {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Polygon {
-    pointlist: PointList,
+    pub pointlist: PointList,
 }
 
 impl Shape for Polygon {
@@ -150,7 +151,7 @@ impl Polygon {
 }
 
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Rectangle {
     pointlist: PointList,
     /// Top left x coordinate

@@ -26,6 +26,7 @@ use std::thread;
 use std::sync::{Arc, Mutex};
 
 use contour_detection::contour_processor::ContourProcessor;
+use contour_detection::shape::{Polygon, Points, PointList};
 
 #[cfg(feature = "camera_support")]
 use streamer::webcam_stream::WebcamStream;
@@ -99,10 +100,14 @@ fn main() {
 
             let gray_result = image::GrayImage::from_raw(dim.0, dim.1, result).expect("ImageBuffer couldn't be created");
             let contours = contour_finder.find_contours(&gray_result, size);
-
-            println!("Found {} contours.", contours.len());
             
-            let rgba: image::RgbaImage = gray_result.convert();
+            let mut rgba: image::RgbaImage = gray_result.convert();
+
+            for c in contours {
+                for p in c.points.get_vertices() {
+                    rgba.put_pixel(p.x as u32, p.y as u32, image::Rgba{ data: [255, 0, 0, 255] });
+                }
+            }
 
             if let Some(mut t) = tex {
                 t.update(&mut window.encoder, &rgba).unwrap();
