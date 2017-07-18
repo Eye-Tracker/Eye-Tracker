@@ -93,7 +93,7 @@ fn gui(ui: &mut conrod::UiCell, ids: &Ids, app: Arc<Mutex<App>>) {
         };
     
     let size_label = format!("{} {}", CONTOUR_SIZE_FILTER, unlocked.size_filter as i16);
-    if let Some(size) = widget::Slider::new(unlocked.size_filter, 0.0, 160.0)
+    if let Some(size) = widget::Slider::new(unlocked.size_filter, 0.0, 100.0)
         .w_h(200.0, 50.0)
         .mid_left_of(ids.canvas)
         .down_from(ids.high_threshold_slider, 15.0)

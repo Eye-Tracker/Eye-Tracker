@@ -23,8 +23,6 @@ mod gui;
 use image::ConvertBuffer;
 use fps_counter::FPSCounter;
 use std::thread;
-use std::sync::mpsc::{Sender, Receiver};
-use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 
 use contour_detection::contour_processor::ContourProcessor;
@@ -53,7 +51,6 @@ fn setup_streamer() -> (Box<Iterator<Item = image::RgbImage>>, (u32, u32)) {
     (iterator, dim)
 }
 
-type ConfigData = (f32, f32, f64);
 fn main() {
     let (mut iterator, dim) = setup_streamer();
     let processor = opencl::imgproc::setup(true, dim);
@@ -101,7 +98,7 @@ fn main() {
             let result = canny_edge.execute_edge_detection(grayscaled.into_raw(), low, high);
 
             let gray_result = image::GrayImage::from_raw(dim.0, dim.1, result).expect("ImageBuffer couldn't be created");
-            let contours = contour_finder.find_contours(&gray_result, size);
+            let contours = contour_finder.find_contours(&gray_result, size / 100f64);
 
             println!("Found {} contours.", contours.len());
             

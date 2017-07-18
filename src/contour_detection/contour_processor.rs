@@ -144,7 +144,7 @@ impl ContourProcessor {
         list.push(root.clone());
         while list.len() != 0 {
             let ret = list.remove(0);
-            if let Some(par) = ret.ancestors(arena).next() {
+            if let Some(par) = ret.ancestors(arena).nth(1) {
                 if arena[ret].data.bounds.calculate_area() / arena[par].data.bounds.calculate_area() < min_relative_child_prop {
                     ret.detach(arena);
                 }
