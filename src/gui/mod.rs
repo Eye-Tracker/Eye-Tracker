@@ -93,13 +93,13 @@ fn gui(ui: &mut conrod::UiCell, ids: &Ids, app: Arc<Mutex<App>>) {
         };
     
     let size_label = format!("{} {}", CONTOUR_SIZE_FILTER, unlocked.size_filter as f32);
-    if let Some(size) = widget::Slider::new(unlocked.size_filter * 100f64, 0.0, 100.0)
+    if let Some(size) = widget::Slider::new(unlocked.size_filter * 6f64 * 100f64, 0.0, 100.0)
         .w_h(200.0, 50.0)
         .mid_left_of(ids.canvas)
         .down_from(ids.high_threshold_slider, 15.0)
         .label(&size_label)
         .set(ids.size_filter_slider, ui) {
-            unlocked.size_filter = size / 100f64;
+            unlocked.size_filter = size / 6f64 / 100f64;
         };
 }
 
