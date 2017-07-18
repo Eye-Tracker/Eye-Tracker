@@ -80,7 +80,7 @@ fn main() {
             dim.0 as f64 / 3.0,
             dim.0 as f64 / 3.0];
 
-    let app = Arc::new(Mutex::new(gui::App::new(10.0, 70.0, 10.0)));
+    let app = Arc::new(Mutex::new(gui::App::new(10.0, 70.0, 0.1)));
     let data = app.clone();
     thread::spawn(move || {
         gui::draw_gui(data);
@@ -98,7 +98,7 @@ fn main() {
             let result = canny_edge.execute_edge_detection(grayscaled.into_raw(), low, high);
 
             let gray_result = image::GrayImage::from_raw(dim.0, dim.1, result).expect("ImageBuffer couldn't be created");
-            let contours = contour_finder.find_contours(&gray_result, size / 100f64);
+            let contours = contour_finder.find_contours(&gray_result, size);
 
             println!("Found {} contours.", contours.len());
             
