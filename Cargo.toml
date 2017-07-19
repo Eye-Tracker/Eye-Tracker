@@ -18,6 +18,7 @@ piston-texture = "0.5.0"
 piston2d-graphics = "0.21.1"
 fps_counter = "0.2.0"
 indextree = "1.0.1"
+rand = "0.3.15"
 
 [dependencies.conrod]
 version = "0.53.0"

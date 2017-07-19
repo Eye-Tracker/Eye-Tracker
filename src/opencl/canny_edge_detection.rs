@@ -15,24 +15,24 @@ impl Canny {
     pub fn new(path: PathBuf, context: &Context, queue: Queue, dim: (u32, u32)) -> Canny {
         let program = Program::builder().src_file(path.join("canny_edge_detection.cl")).build(context).unwrap();
 
-        let kdim = dim.0.checked_mul(dim.1).unwrap().checked_mul(mem::size_of::<u8>() as u32).unwrap();
+        let kdim = dim.0 * dim.1;
 
         let next_buffer = Buffer::builder()
             .queue(queue.clone())
             .flags(MemFlags::new().read_write().alloc_host_ptr())
-            .dims(kdim.clone())
+            .dims(kdim)
             .build().unwrap();
         
         let prev_buffer = Buffer::builder()
             .queue(queue.clone())
             .flags(MemFlags::new().read_write().alloc_host_ptr())
-            .dims(kdim.clone())
+            .dims(kdim)
             .build().unwrap();
 
         let theta_buffer = Buffer::builder()
             .queue(queue.clone())
             .flags(MemFlags::new().read_write().alloc_host_ptr())
-            .dims(kdim.clone())
+            .dims(kdim)
             .build().unwrap();
 
         let buffers = vec![prev_buffer, next_buffer];

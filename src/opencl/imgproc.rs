@@ -4,6 +4,7 @@ use find_folder::Search;
 
 use std::path::PathBuf;
 use opencl::canny_edge_detection::Canny;
+use opencl::ellipse_detect::EllipseRANSAC;
 //use ellipse_detect;
 
 pub struct ImgProcessor {
@@ -36,5 +37,9 @@ pub fn setup(gpu: bool, dim: (u32, u32)) -> ImgProcessor {
 impl ImgProcessor {
     pub fn setup_canny_edge_detection(&self) -> Canny {
         Canny::new(self.path.clone(), &self.context, self.queue.clone(), self.dim)
+    }
+
+    pub fn setup_ellipse_detection(&self, circle_threshold: f32, num_iterations: i32) -> EllipseRANSAC {
+        EllipseRANSAC::new(circle_threshold, num_iterations, self.dim.0 as usize, self.dim.1 as usize, self.path.clone(), &self.context, self.queue.clone())
     }
 }

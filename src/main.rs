@@ -10,6 +10,7 @@ extern crate fps_counter;
 extern crate indextree;
 #[macro_use]
 extern crate conrod;
+extern crate rand;
 
 #[cfg(feature = "camera_support")]
 extern crate camera_capture;
@@ -57,6 +58,7 @@ fn main() {
     let processor = opencl::imgproc::setup(true, dim);
     
     let mut canny_edge = processor.setup_canny_edge_detection();
+    let mut ellipse_fit = processor.setup_ellipse_detection(2f32, 30);
 
     let opengl = OpenGL::V3_2;
     let mut window: PistonWindow =
@@ -100,6 +102,8 @@ fn main() {
 
             let gray_result = image::GrayImage::from_raw(dim.0, dim.1, result).expect("ImageBuffer couldn't be created");
             let contours = contour_finder.find_contours(&gray_result, size);
+
+            let ellipses = ellipse_fit.execute_ellipse_fit(&contours);
             
             let mut rgba: image::RgbaImage = frame.convert();
 
