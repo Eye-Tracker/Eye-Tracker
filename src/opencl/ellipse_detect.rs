@@ -114,7 +114,8 @@ impl EllipseRANSAC {
             .arg_scl(self.params.colinear_tolerance)
             .arg_scl(self.params.radius_tolerance)
             .arg_scl(self.params.point_threshold)
-            .arg_scl(self.params.num_iterations);
+            .arg_scl(self.params.num_iterations)
+            .arg_scl(max_width);
 
         kernel.enq().unwrap();
 
@@ -134,7 +135,6 @@ impl EllipseRANSAC {
     }
 
     pub fn execute_ellipse_fit(&self, contours: &[Contour]) -> Option<Vec<RansacResult>> {
-        println!("Contours len {}", contours.len());
         if contours.len() > 0 && contours.len() < 200 { //Fitting over 200 contours is too expensive
             let mut max_len = 0;
             for c in contours {
