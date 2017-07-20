@@ -81,7 +81,6 @@ impl EllipseRANSAC {
             .build().unwrap();
 
 
-        //TODO not quite sure with the len here
         let result_center_buffer = Buffer::<Int2>::builder()
             .queue(self.queue.clone())
             .flags(MemFlags::new().read_write().alloc_host_ptr())
@@ -93,8 +92,6 @@ impl EllipseRANSAC {
             .flags(MemFlags::new().read_write().alloc_host_ptr())
             .dims(num_contours)
             .build().unwrap();
-
-        println!("Launching kernels: GWS {} | LWS {}", num_contours * self.params.num_iterations, self.params.num_iterations);
 
         let kernel = Kernel::new("ransac_kernel", &self.ellipse_detect).unwrap()
             .queue(self.queue.clone())

@@ -77,12 +77,6 @@ fn main() {
     let mut tex: Option<Texture<_>> = None;
     let mut fpsc = FPSCounter::new();
 
-    let limbus_pos = [
-            dim.0 as f64 / 2.5,
-            dim.1 as f64 / 3.5,
-            dim.0 as f64 / 3.0,
-            dim.0 as f64 / 3.0];
-
     let app = Arc::new(Mutex::new(gui::App::new(10.0, 70.0, 0.1)));
     let data = app.clone();
     thread::spawn(move || {
@@ -94,6 +88,7 @@ fn main() {
         let mut fps = 0;
         let unlocked = app.lock().unwrap();
         let (low, high, size) = (unlocked.low_threshold, unlocked.high_threshold, unlocked.size_filter);
+        let mut ellipses = None;
         if let Some(frame) = iterator.next() {
             fps = fpsc.tick();
 
@@ -103,7 +98,7 @@ fn main() {
             let gray_result = image::GrayImage::from_raw(dim.0, dim.1, result).expect("ImageBuffer couldn't be created");
             let contours = contour_finder.find_contours(&gray_result, size);
 
-            let ellipses = ellipse_fit.execute_ellipse_fit(&contours);
+            ellipses = ellipse_fit.execute_ellipse_fit(&contours);
             
             let mut rgba: image::RgbaImage = frame.convert();
 
@@ -124,8 +119,17 @@ fn main() {
             clear([1.0; 4], g);
             if let Some(ref t) = tex {
                 piston_window::image(t, c.transform, g);
-                Ellipse::new_border([1.0, 0.0, 0.0, 1.0], 1f64)
-                    .draw(limbus_pos, &c.draw_state, c.transform, g);
+                if let Some(ref ellipses_found) = ellipses {
+                    for e in ellipses_found {
+                        println!("Ellipse is {:?}", e);
+                        if e.2 > 0f32 {
+                            let pos = [ e.0 as f64 - e.2 as f64, e.1 as f64 - e.2 as f64, 
+                                e.2 as f64, e.2 as f64];
+                            Ellipse::new_border([1.0, 0.0, 0.0, 1.0], 1f64)
+                                .draw(pos, &c.draw_state, c.transform, g);
+                        }
+                    }
+                }
                 let transform = c.transform.trans(10.0, 30.0);
                 text::Text::new_color([0.29, 0.68, 0.31, 1.0], 24).draw(
                     &format!("FPS: {}", fps),
