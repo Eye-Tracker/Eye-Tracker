@@ -1,5 +1,6 @@
 use ocl::{Queue, Kernel, Context, Program, MemFlags, Buffer};
-use ocl::prm::Int3;
+use ocl::prm::{Float, Int, Int2, Int3};
+use ocl::SpatialDims;
 use std::mem;
 use std::path::PathBuf;
 use contour_detection::contour::Contour;
@@ -43,8 +44,8 @@ impl EllipseRANSAC {
         EllipseRANSAC { ellipse_detect: ellipse_detect, queue: queue, params: params }
     }
 
-    fn launch_kernel(&self, consens_x: &[usize], consens_y: &[usize], consens_size: &[usize], max_width: usize, num_contours: usize) -> Vec<RansacResult> {
-        let mut rands = vec![Int3::new(0,0,0); self.params.num_iterations as usize * num_contours * 10usize];
+    fn launch_kernel(&self, consens_x: &[i32], consens_y: &[i32], consens_size: &[i32], max_width: i32, num_contours: i32) -> Vec<RansacResult> {
+        let mut rands = vec![Int3::new(0,0,0); self.params.num_iterations as usize * num_contours as usize * 10usize];
         //Generate random numbers on CPU
         for i in 0..rands.len() {
             let rand = rand::random::<(i32, i32, i32)>();
@@ -53,60 +54,61 @@ impl EllipseRANSAC {
 
         let consens_x_buffer = Buffer::builder()
             .queue(self.queue.clone())
-            .flags(MemFlags::new().read_write().alloc_host_ptr())
+            .flags(MemFlags::new().read_write() | MemFlags::new().copy_host_ptr())
             .dims(consens_x.len())
             .host_data(consens_x)
             .build().unwrap();
         
         let consens_y_buffer = Buffer::builder()
             .queue(self.queue.clone())
-            .flags(MemFlags::new().read_write().alloc_host_ptr())
+            .flags(MemFlags::new().read_write() | MemFlags::new().copy_host_ptr())
             .dims(consens_y.len())
             .host_data(consens_y)
             .build().unwrap();
         
         let consens_size_buffer = Buffer::builder()
             .queue(self.queue.clone())
-            .flags(MemFlags::new().read_write().alloc_host_ptr())
+            .flags(MemFlags::new().read_write() | MemFlags::new().copy_host_ptr())
             .dims(consens_size.len())
             .host_data(consens_size)
             .build().unwrap();
 
         let rand_buffer = Buffer::builder()
             .queue(self.queue.clone())
-            .flags(MemFlags::new().read_write().alloc_host_ptr())
+            .flags(MemFlags::new().read_only() | MemFlags::new().copy_host_ptr() | MemFlags::new().host_write_only())
             .dims(rands.len())
             .host_data(&rands)
             .build().unwrap();
 
-        let mut result_center = vec![0; num_contours * 2];
-        let mut result_radius = vec![0.0; num_contours];
 
         //TODO not quite sure with the len here
-        let result_center_buffer = Buffer::builder()
-            .queue(self.queue.clone())
-            .flags(MemFlags::new().read_write().alloc_host_ptr())
-            .dims(num_contours * 2)
-            .host_data(&result_center)
-            .build().unwrap();
-
-        let result_radius_buffer = Buffer::builder()
+        let result_center_buffer = Buffer::<Int2>::builder()
             .queue(self.queue.clone())
             .flags(MemFlags::new().read_write().alloc_host_ptr())
             .dims(num_contours)
-            .host_data(&result_radius)
             .build().unwrap();
+
+        let result_radius_buffer = Buffer::<Float>::builder()
+            .queue(self.queue.clone())
+            .flags(MemFlags::new().read_write().alloc_host_ptr())
+            .dims(num_contours)
+            .build().unwrap();
+
+        println!("Launching kernels: GWS {} | LWS {}", num_contours * self.params.num_iterations, self.params.num_iterations);
 
         let kernel = Kernel::new("ransac_kernel", &self.ellipse_detect).unwrap()
             .queue(self.queue.clone())
-            .gws(num_contours)
-            .lws(self.params.num_iterations)
+            .gws(SpatialDims::One(num_contours as usize * self.params.num_iterations as usize))
+            .lws(SpatialDims::One(self.params.num_iterations as usize))
             .arg_buf(&consens_x_buffer)
             .arg_buf(&consens_y_buffer)
             .arg_buf(&consens_size_buffer)
             .arg_buf(&result_center_buffer)
             .arg_buf(&result_radius_buffer)
             .arg_buf(&rand_buffer)
+            .arg_loc::<Int>(self.params.num_iterations as usize * mem::size_of::<Int>())
+            .arg_loc::<Int2>(self.params.num_iterations as usize * mem::size_of::<Int2>() * 2usize)
+            .arg_loc::<Float>(self.params.num_iterations as usize * mem::size_of::<Float>())
             .arg_scl(self.params.max_point_seperation)
             .arg_scl(self.params.min_point_seperation)
             .arg_scl(self.params.colinear_tolerance)
@@ -116,17 +118,23 @@ impl EllipseRANSAC {
 
         kernel.enq().unwrap();
 
+        let mut result_center = vec![Int2::new(0,0); num_contours as usize]; 
+        let mut result_radius = vec![Float::new(0.0); num_contours as usize];
+
         result_center_buffer.read(&mut result_center).enq().unwrap();
         result_radius_buffer.read(&mut result_radius).enq().unwrap();
 
         let mut result = Vec::with_capacity(result_radius.len());
         for i in 0..result.len() {
-            result.push((result_center[i*2], result_center[i*2+1], result_radius[i]));
+            let center = result_center[i].to_vec();
+            let radius = result_radius[i].to_vec()[0];
+            result.push((center[0] as usize, center[1] as usize, radius));
         }
         result
     }
 
     pub fn execute_ellipse_fit(&self, contours: &[Contour]) -> Option<Vec<RansacResult>> {
+        println!("Contours len {}", contours.len());
         if contours.len() > 0 && contours.len() < 200 { //Fitting over 200 contours is too expensive
             let mut max_len = 0;
             for c in contours {
@@ -137,22 +145,22 @@ impl EllipseRANSAC {
             }
 
             let dim = contours.len() * max_len;
-            let mut consens_x = vec![0; contours.len() * max_len];
-            let mut consens_y = vec![0; contours.len() * max_len];
-            let mut consens_size = vec![0; contours.len()];
+            let mut consens_x = vec![0i32; contours.len() * max_len];
+            let mut consens_y = vec![0i32; contours.len() * max_len];
+            let mut consens_size = vec![0i32; contours.len()];
 
             for i in 0..contours.len() {
                 let points = contours[i].points.get_vertices();
                 let len = points.len();
                 for j in 0..len {
-                    consens_x[i * max_len + j] = points[j].x;
-                    consens_y[i * max_len + j] = points[j].y;
+                    consens_x[i * max_len + j] = points[j].x as i32;
+                    consens_y[i * max_len + j] = points[j].y as i32;
                 }
 
-                consens_size[i] = len;
+                consens_size[i] = len as i32;
             }
 
-            return Some(self.launch_kernel(&consens_x, &consens_y, &consens_size, max_len, contours.len()));
+            return Some(self.launch_kernel(&consens_x, &consens_y, &consens_size, max_len as i32, contours.len() as i32));
         }
 
          None
