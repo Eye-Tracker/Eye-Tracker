@@ -74,6 +74,11 @@ __kernel void ransac_kernel(__global int* consensus_set_x,
         return;
     }
 
+    x_mp_AB = (consensus_set_x[start_read + iA] + consensus_set_x[start_read + iB])/2.0;
+    y_mp_AB = (consensus_set_y[start_read + iA] + consensus_set_y[start_read + iB])/2.0;
+    x_mp_BC = (consensus_set_x[start_read + iB] + consensus_set_x[start_read + iC])/2.0;
+	y_mp_BC = (consensus_set_y[start_read + iB] + consensus_set_y[start_read + iC])/2.0;
+
     m_pb_AB = -1/m_AB;
     m_pb_BC = -1/m_BC;
     b_pb_AB = y_mp_AB - m_pb_AB * x_mp_AB;
@@ -90,12 +95,20 @@ __kernel void ransac_kernel(__global int* consensus_set_x,
     iter_radius[get_local_id(0)] = cur_radius;
 
     if (cx < 0 || cy < 0) {
-        printf("OCL:\n");
-        printf("In Thread %d %d %d %f\n", get_local_id(0), cx, cy, cur_radius);
-        printf("\nA : %d %d\n", consensus_set_x[start_read + iA], consensus_set_y[start_read + iA] );
-        printf("B : %d %d\n", consensus_set_x[start_read + iB], consensus_set_y[start_read + iB] );
-        printf("C : %d %d\n", consensus_set_x[start_read + iC], consensus_set_y[start_read + iC] );
-        printf("AB BC : %f %f\n", AB, BC );
+        printf("\nOCL:\nIn Thread %d %d %d %f\nRands: %d, %d, %d\nConsA: %d %d\nConsB: %d %d\nConsC: %d %d\nm_AB, m_BC, b_AB: %f, %f, %f\nx_mp_AB, y_mp_AB, x_mp_BC, y_mp_BC: %f, %f, %f, %f\nm_pb_AB, m_pb_BC: %f, %f\nb_pb_AB, b_pb_BC: %f, %f\nA : %d %d\nB : %d %d\nC : %d %d\nAB BC : %f %f\n", 
+        	get_local_id(0), cx, cy, cur_radius, 
+        	iA, iB, iC,
+        	consensus_set_x[start_read + iA], consensus_set_y[start_read + iA],
+        	consensus_set_x[start_read + iB], consensus_set_y[start_read + iB],
+        	consensus_set_x[start_read + iC], consensus_set_y[start_read + iC],
+        	m_AB, m_BC, b_AB,
+        	x_mp_AB, y_mp_AB, x_mp_BC, y_mp_BC,
+        	m_pb_AB, m_pb_BC,
+        	b_pb_AB, b_pb_BC,
+        	consensus_set_x[start_read + iA], consensus_set_y[start_read + iA],
+        	consensus_set_x[start_read + iB], consensus_set_y[start_read + iB],
+        	consensus_set_x[start_read + iC], consensus_set_y[start_read + iC],
+        	AB, BC);
     }
 
     votes[get_local_id(0)] = 0;
