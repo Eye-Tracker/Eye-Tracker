@@ -48,8 +48,8 @@ impl EllipseRANSAC {
         let mut rands = vec![Int3::new(0,0,0); self.params.num_iterations as usize * num_contours as usize * 10usize];
         //Generate random numbers on CPU
         for i in 0..rands.len() {
-            let rand = rand::random::<(i32, i32, i32)>();
-            rands[i] = Int3::new(rand.0, rand.1, rand.2);
+            let rand = rand::random::<(u32, u32, u32)>();
+            rands[i] = Int3::new(rand.0 as i32, rand.1 as i32, rand.2 as i32);
         }
 
         let consens_x_buffer = Buffer::builder()
