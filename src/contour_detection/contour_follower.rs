@@ -1,24 +1,23 @@
-use image::GrayImage;
-use contour_detection::Coordinates;
+use contour_detection::{FloatImage, Coordinates};
 use contour_detection;
 
 pub trait FollowingStrategy {
-    fn contour(&self, img: &GrayImage, ij: Coordinates, i2j2: Coordinates) -> Vec<Coordinates> {
+    fn contour(&self, img: &FloatImage, ij: Coordinates, i2j2: Coordinates) -> Vec<Coordinates> {
         let mut ret =Vec::new();
         self.do_contouring(img, ij, i2j2, |c| ret.push(c));
         return ret;
     }
 
-    fn do_contouring<F>(&self, img: &GrayImage, ij: Coordinates, i2j2: Coordinates, 
+    fn do_contouring<F>(&self, img: &FloatImage, ij: Coordinates, i2j2: Coordinates, 
                             func: F) -> () where F: FnMut(Coordinates) -> (); 
 }
 
 pub struct SuzukiStrategy;
 
 impl SuzukiStrategy {
-    pub fn directed_contour<F>(&self, img: &GrayImage, ij: Coordinates, i2j2: Coordinates, 
+    pub fn directed_contour<F>(&self, img: &FloatImage, ij: Coordinates, i2j2: Coordinates, 
                             mut func: F) -> () where F: FnMut((Coordinates, [bool; 8])) -> () {
-        let mut dir = contour_detection::direction::fromTo(ij, i2j2).unwrap();
+        let mut dir = contour_detection::direction::from_to(ij, i2j2).unwrap();
         let mut trace = dir.clockwise();
         let mut i1j1: Option<Coordinates> = None;
 
@@ -47,7 +46,7 @@ impl SuzukiStrategy {
         }
         
         loop {
-            dir = contour_detection::direction::fromTo(i3j3, i2j2).unwrap();
+            dir = contour_detection::direction::from_to(i3j3, i2j2).unwrap();
             trace = dir.counter_clockwise();
             let mut i4j4: Option<Coordinates> = None;
             reset_checked(&mut checked); //TODO test if this really resets
@@ -74,7 +73,7 @@ impl SuzukiStrategy {
     }
 }
 impl FollowingStrategy for SuzukiStrategy {
-    fn do_contouring<F>(&self, img: &GrayImage, ij: Coordinates, i2j2: Coordinates, 
+    fn do_contouring<F>(&self, img: &FloatImage, ij: Coordinates, i2j2: Coordinates, 
                             mut func: F) -> () where F: FnMut(Coordinates) -> () {
         self.directed_contour(img, ij, i2j2, |(c, _)| func(c));
     }

@@ -1,5 +1,4 @@
-use image::GrayImage;
-use contour_detection::Coordinates;
+use contour_detection::{FloatImage, Coordinates};
 use std;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -45,15 +44,15 @@ impl Direction {
         panic!("Unsafe block in Counter Clockwise Direction failed!");
     }
 
-    pub fn active(&self, pos: Coordinates, img: &GrayImage) -> Result<Option<Coordinates>, &'static str> {
+    pub fn active(&self, pos: Coordinates, img: &FloatImage) -> Result<Option<Coordinates>, &'static str> {
         let cur = *self as i32;
         let y = pos.y as i32 + DIR_Y[cur as usize];
         let x = pos.x as i32 + DIR_X[cur as usize];
         if x < 0 || x >= img.width() as i32 || y < 0 || y >= img.height() as i32 {
             Err("Position needs to be within the image bounds!")
         } else {
-            let color: u8 = img.get_pixel(x as u32, y as u32).data[0];
-            if color != 0 {
+            let color: f32 = img.get_pixel(x as u32, y as u32);
+            if color != 0f32 {
                 Ok(Some(Coordinates::new(x as usize, y as usize)))
             } else {
                 Ok(None)
@@ -62,7 +61,7 @@ impl Direction {
     }
 }
 
-pub fn fromTo(from: Coordinates, to: Coordinates) -> Result<Direction, &'static str> {
+pub fn from_to(from: Coordinates, to: Coordinates) -> Result<Direction, &'static str> {
     if from == to {
         Err("From and To positions are the same!")
     } else {

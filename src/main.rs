@@ -11,6 +11,7 @@ extern crate indextree;
 #[macro_use]
 extern crate conrod;
 extern crate rand;
+extern crate ordered_float;
 
 #[cfg(feature = "camera_support")]
 extern crate camera_capture;
@@ -58,7 +59,7 @@ fn main() {
     let processor = opencl::imgproc::setup(true, dim);
     
     let mut canny_edge = processor.setup_canny_edge_detection();
-    let mut ellipse_fit = processor.setup_ellipse_detection(2f32, 30);
+    let ellipse_fit = processor.setup_ellipse_detection(2f32, 30);
 
     let opengl = OpenGL::V3_2;
     let mut window: PistonWindow =
@@ -96,15 +97,23 @@ fn main() {
             let result = canny_edge.execute_edge_detection(grayscaled.into_raw(), low, high);
 
             let gray_result = image::GrayImage::from_raw(dim.0, dim.1, result).expect("ImageBuffer couldn't be created");
+            //let gray_result: image::GrayImage = image_loader::open_image("test_circles_border.jpg").to_luma();
+            
             let contours = contour_finder.find_contours(&gray_result, size);
 
             ellipses = ellipse_fit.execute_ellipse_fit(&contours);
+
+            if let Some(ref ellipse_vec) = ellipses {
+                for e in ellipse_vec {
+                    println!("Found Ellipse c: {},{} | radius: {}", e.0, e.1, e.2);
+                }
+            }
             
             let mut rgba: image::RgbaImage = frame.convert();
 
-            for c in contours {
-                for p in c.points.get_vertices() {
-                    rgba.put_pixel(p.x as u32, p.y as u32, image::Rgba{ data: [255, 0, 0, 255] });
+            for c in contours { 
+                for p in c.points.get_vertices() { 
+                    rgba.put_pixel(p.x as u32, p.y as u32, image::Rgba{ data: [255, 0, 0, 255] }); 
                 }
             }
 
