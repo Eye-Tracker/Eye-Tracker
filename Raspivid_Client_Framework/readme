@@ -1,0 +1,9 @@
+Use with Raspivid-Script on Pi Zero with udp in name (for Pi Zero as server). Only supports UDP streaming right now. 
+
+Usage Pi:
+On Pi run the script for starting the raspivid udp stream server.
+
+Usage Client:
+- Build source code using cmake and make
+- Run it with ./raspivid_client_framework
+- Run client programm before the server

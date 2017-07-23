@@ -1,0 +1,1 @@
+nc -u -l -p 5001 | mplayer -benchmark -fps 120 -cache 4096 -
