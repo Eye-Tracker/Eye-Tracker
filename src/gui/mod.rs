@@ -8,6 +8,7 @@ use conrod;
 use std;
 use find_folder;
 use std::sync::{Arc, Mutex};
+use std::cmp;
 
 pub fn theme() -> conrod::Theme {
     use conrod::position::{Align, Direction, Padding, Position, Relative};
@@ -35,11 +36,23 @@ pub struct App {
     pub low_threshold: f32,
     pub high_threshold: f32,
     pub size_filter: f64,
+    pub eye_pos: (u32, u32),
+    pub eye_pos_threshold: u32,
+    pub eye_min_radius: f32,
+    pub eye_max_radius: f32,
 }
 
 impl App {
-    pub fn new(low: f32, high: f32, size: f64) -> Self {
-        App{low_threshold: low, high_threshold: high, size_filter: size}
+    pub fn new(low: f32, high: f32, size: f64, eye_pos: (u32, u32), eye_thresh: u32, min_radius: f32, max_radius: f32) -> Self {
+        App {
+            low_threshold: low, 
+            high_threshold: high, 
+            size_filter: size,
+            eye_pos: eye_pos,
+            eye_pos_threshold: eye_thresh,
+            eye_min_radius: min_radius,
+            eye_max_radius: max_radius
+        }
     }
 }
 
@@ -50,10 +63,14 @@ widget_ids! {
         low_threshold_slider,
         high_threshold_slider,
         size_filter_slider,
+        eye_pos_xy,
+        eye_pos_threshold_slider,
+        eye_max_radius_slider,
+        eye_min_radius_slider,
     }
 }
 
-fn gui(ui: &mut conrod::UiCell, ids: &Ids, app: Arc<Mutex<App>>) {
+fn gui(ui: &mut conrod::UiCell, ids: &Ids, dim_img: (u32, u32), app: Arc<Mutex<App>>) {
     const MARGIN: conrod::Scalar = 30.0;
     const TITLE_SIZE: conrod::FontSize = 42;
 
@@ -61,6 +78,11 @@ fn gui(ui: &mut conrod::UiCell, ids: &Ids, app: Arc<Mutex<App>>) {
     const LOW_THRESHOLD: &'static str = "Canny Edge Low Theshold:";
     const HIGH_THRESHOLD: &'static str = "Canny Edge High Theshold:";
     const CONTOUR_SIZE_FILTER: &'static str = "Countour Size Filtering:";
+    const EYE_POS_XY: &'static str = "Eye position:";
+    const EYE_POS_THRESHOLD: &'static str = "Eye Position Threshold:";
+    const EYE_MAX_RADIUS: &'static str = "Maximum Eye Size radius:";
+    const EYE_MIN_RADIUS: &'static str = "Minimum Eye Size radius:";
+
     widget::Canvas::new()
         .pad(MARGIN)
         .set(ids.canvas, ui);
@@ -74,7 +96,7 @@ fn gui(ui: &mut conrod::UiCell, ids: &Ids, app: Arc<Mutex<App>>) {
 
     let low_label = format!("{} {}", LOW_THRESHOLD, unlocked.low_threshold as i16);
     if let Some(low_thres) = widget::Slider::new(unlocked.low_threshold, 0.0, 255.0)
-        .w_h(200.0, 50.0)
+        .w_h(275.0, 50.0)
         .mid_left_of(ids.canvas)
         .down_from(ids.title, 15.0)
         .label(&low_label)
@@ -84,7 +106,7 @@ fn gui(ui: &mut conrod::UiCell, ids: &Ids, app: Arc<Mutex<App>>) {
 
     let high_label = format!("{} {}", HIGH_THRESHOLD, unlocked.high_threshold as i16);
     if let Some(high_thres) = widget::Slider::new(unlocked.high_threshold, 0.0, 255.0)
-        .w_h(200.0, 50.0)
+        .w_h(275.0, 50.0)
         .mid_left_of(ids.canvas)
         .down_from(ids.low_threshold_slider, 15.0)
         .label(&high_label)
@@ -94,19 +116,72 @@ fn gui(ui: &mut conrod::UiCell, ids: &Ids, app: Arc<Mutex<App>>) {
     
     let size_label = format!("{} {}", CONTOUR_SIZE_FILTER, unlocked.size_filter as f32);
     if let Some(size) = widget::Slider::new(unlocked.size_filter * 6f64 * 100f64, 0.0, 100.0)
-        .w_h(200.0, 50.0)
+        .w_h(275.0, 50.0)
         .mid_left_of(ids.canvas)
         .down_from(ids.high_threshold_slider, 15.0)
         .label(&size_label)
         .set(ids.size_filter_slider, ui) {
             unlocked.size_filter = size / 6f64 / 100f64;
         };
+
+    let size_label = format!("{} {}", CONTOUR_SIZE_FILTER, unlocked.size_filter as f32);
+    if let Some(size) = widget::Slider::new(unlocked.size_filter * 100f64, 0.0, 100.0)
+        .w_h(275.0, 50.0)
+        .mid_left_of(ids.canvas)
+        .down_from(ids.high_threshold_slider, 15.0)
+        .label(&size_label)
+        .set(ids.size_filter_slider, ui) {
+            unlocked.size_filter = (size - 80f64) / 100f64;
+        };
+
+    let xy_label = format!("{} {},{}", EYE_POS_XY, unlocked.eye_pos.0, unlocked.eye_pos.1);
+    for (x, y) in widget::XYPad::new(unlocked.eye_pos.0 as f32, 0f32, dim_img.0 as f32,
+                                     unlocked.eye_pos.1 as f32, 0f32, dim_img.1 as f32)
+        .label(&xy_label)
+        .w_h(275.0, 275.0)
+        .mid_left_of(ids.canvas)
+        .down_from(ids.size_filter_slider, 15.0)
+        .parent(ids.canvas)
+        .set(ids.eye_pos_xy, ui)
+    {
+        unlocked.eye_pos = (x as u32, y as u32);
+    }
+
+    let eye_threshold_label = format!("{} {}", EYE_POS_THRESHOLD, unlocked.eye_pos_threshold);
+    if let Some(size) = widget::Slider::new(unlocked.eye_pos_threshold as f32, 0f32, cmp::min(dim_img.0, dim_img.1) as f32)
+        .w_h(275.0, 50.0)
+        .mid_left_of(ids.canvas)
+        .down_from(ids.eye_pos_xy, 15.0)
+        .label(&eye_threshold_label)
+        .set(ids.eye_pos_threshold_slider, ui) {
+            unlocked.eye_pos_threshold = size as u32;
+        };
+
+    let eye_min_radius_label = format!("{} {}", EYE_MIN_RADIUS, unlocked.eye_min_radius);
+    if let Some(size) = widget::Slider::new(unlocked.eye_min_radius, 0.0f32, cmp::min(dim_img.0, dim_img.1) as f32)
+        .w_h(275.0, 50.0)
+        .mid_left_of(ids.canvas)
+        .down_from(ids.eye_pos_threshold_slider, 15.0)
+        .label(&eye_min_radius_label)
+        .set(ids.eye_min_radius_slider, ui) {
+            unlocked.eye_min_radius = size;
+        };
+
+    let eye_max_radius_label = format!("{} {}", EYE_MAX_RADIUS, unlocked.eye_max_radius);
+    if let Some(size) = widget::Slider::new(unlocked.eye_max_radius, 0.0f32, cmp::min(dim_img.0, dim_img.1) as f32)
+        .w_h(275.0, 50.0)
+        .mid_left_of(ids.canvas)
+        .down_from(ids.eye_min_radius_slider, 15.0)
+        .label(&eye_max_radius_label)
+        .set(ids.eye_max_radius_slider, ui) {
+            unlocked.eye_max_radius = size;
+        };
 }
 
 
-pub fn draw_gui(app: Arc<Mutex<App>>) {
-    const WIDTH: u32 = 320;
-    const HEIGHT: u32 = 350;
+pub fn draw_gui(app: Arc<Mutex<App>>, dim_img: (u32, u32)) {
+    const WIDTH: u32 = 350;
+    const HEIGHT: u32 = 735;
     let mut window: PistonWindow =
             WindowSettings::new("Config Settings", [WIDTH, HEIGHT])
                 .opengl(OpenGL::V3_2) // If not working, try `OpenGL::V2_1`.
@@ -152,7 +227,7 @@ pub fn draw_gui(app: Arc<Mutex<App>>) {
         event.update(|_| {
             let mut ui = ui.set_widgets();
             let data = app.clone();
-            gui(&mut ui, &ids, data);
+            gui(&mut ui, &ids, dim_img, data);
         });
 
          window.draw_2d(&event, |context, graphics| {

@@ -27,6 +27,7 @@ use image::ConvertBuffer;
 use fps_counter::FPSCounter;
 use std::thread;
 use std::sync::{Arc, Mutex};
+use std::cmp;
 
 use contour_detection::contour_processor::ContourProcessor;
 use contour_detection::shape::{Polygon, Points, PointList};
@@ -81,10 +82,14 @@ fn main() {
     let mut tex: Option<Texture<_>> = None;
     let mut fpsc = FPSCounter::new();
 
-    let app = Arc::new(Mutex::new(gui::App::new(10.0, 70.0, 0.1)));
+    let app = Arc::new(Mutex::new(gui::App::new(
+        60.0, 120.0, 0.0,
+        (dim.0 / 2, dim.1 / 2), cmp::min(dim.0, dim.1) / 5, 
+        cmp::min(dim.0, dim.1) as f32 / 7f32, cmp::min(dim.0, dim.1) as f32 / 5f32
+    )));
     let data = app.clone();
     thread::spawn(move || {
-        gui::draw_gui(data);
+        gui::draw_gui(data, dim);
     });
 
     let contour_finder = ContourProcessor;
@@ -92,7 +97,10 @@ fn main() {
     while let Some(e) = window.next() {
         let mut fps = 0;
         let unlocked = app.lock().unwrap();
-        let (low, high, size) = (unlocked.low_threshold, unlocked.high_threshold, unlocked.size_filter);
+        let (low, high, size, 
+                eye_pos, eye_threshold, eye_min, eye_max) = 
+                    (unlocked.low_threshold, unlocked.high_threshold, unlocked.size_filter,
+                    unlocked.eye_pos, unlocked.eye_pos_threshold, unlocked.eye_min_radius, unlocked.eye_max_radius);
         let mut ellipses = None;
 
         if let Some(Button::Keyboard(key)) = e.press_args() {
@@ -139,7 +147,10 @@ fn main() {
                 piston_window::image(t, c.transform, g);
                 if let Some(ref ellipses_found) = ellipses {
                     for e in ellipses_found {
-                        if e.2 > 0f32 && e.0 > 0 && e.0 < dim.0 as usize && e.1 > 0 && e.1 < dim.1 as usize {
+                        if e.2 > eye_min && e.2 < eye_max
+                            && e.0 > (eye_pos.0 - eye_threshold) as usize && e.0 < (eye_pos.0 + eye_threshold) as usize
+                            && e.1 > (eye_pos.1 - eye_threshold) as usize && e.1 < (eye_pos.1 + eye_threshold) as usize
+                             {
                             let pos = [ e.0 as f64 - e.2 as f64, e.1 as f64 - e.2 as f64, 
                                 e.2 as f64, e.2 as f64];
                             Ellipse::new_border([1.0, 0.0, 0.0, 1.0], 1f64)
