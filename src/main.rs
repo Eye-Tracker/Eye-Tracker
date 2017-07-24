@@ -120,7 +120,7 @@ fn main() {
 
             for c in contours { 
                 for p in c.points.get_vertices() { 
-                    rgba.put_pixel(p.x as u32, p.y as u32, image::Rgba{ data: [255, 0, 0, 255] }); 
+                    rgba.put_pixel(p.x as u32, p.y as u32, image::Rgba{ data: [0, 255, 0, 255] }); 
                 }
             }
 
