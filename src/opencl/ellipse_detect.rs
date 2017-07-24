@@ -1,5 +1,5 @@
 use ocl::{Queue, Kernel, Context, Program, MemFlags, Buffer};
-use ocl::prm::{Float, Int, Int2, Int3};
+use ocl::prm::{Float, Float2, Int, Int2, Int3};
 use ocl::SpatialDims;
 use std::mem;
 use std::path::PathBuf;
@@ -46,94 +46,121 @@ impl EllipseRANSAC {
     }
 
     fn launch_kernel(&self, consens_x: Vec<i32>, consens_y: Vec<i32>, consens_size: Vec<i32>, max_width: i32, num_contours: i32) -> Vec<RansacResult> {
-        let mut rands = vec![Int3::new(0,0,0); self.params.num_iterations as usize * num_contours as usize * 10usize];
+        let mut rands1 = vec![0i32; self.params.num_iterations as usize * num_contours as usize * 10usize];
+        let mut rands2 = vec![0i32; self.params.num_iterations as usize * num_contours as usize * 10usize];
+        let mut rands3 = vec![0i32; self.params.num_iterations as usize * num_contours as usize * 10usize];
         //Generate random numbers on CPU
         let between = Range::new(0, max_width);
         let mut rng = rand::thread_rng();
-        for i in 0..rands.len() {
-            rands[i] = Int3::new(between.ind_sample(&mut rng), between.ind_sample(&mut rng), between.ind_sample(&mut rng));
+        for i in 0..rands1.len() {
+            rands1[i] = between.ind_sample(&mut rng);
+            rands2[i] = between.ind_sample(&mut rng);
+            rands3[i] = between.ind_sample(&mut rng);
         }
 
         let consens_x_buffer = Buffer::builder()
             .queue(self.queue.clone())
             .flags(MemFlags::new().read_write().copy_host_ptr())
-            .dims(consens_x.len())
+            .dims(SpatialDims::One(consens_x.len()))
             .host_data(&consens_x)
-            .build().unwrap();
+            .build().expect("Consens x buffer wasn't created");
         
         let consens_y_buffer = Buffer::builder()
             .queue(self.queue.clone())
             .flags(MemFlags::new().read_write().copy_host_ptr())
-            .dims(consens_y.len())
+            .dims(SpatialDims::One(consens_y.len()))
             .host_data(&consens_y)
-            .build().unwrap();
+            .build().expect("Consens y buffer wasn't created");
         
         let consens_size_buffer = Buffer::builder()
             .queue(self.queue.clone())
             .flags(MemFlags::new().read_write().copy_host_ptr())
-            .dims(consens_size.len())
+            .dims(SpatialDims::One(consens_size.len()))
             .host_data(&consens_size)
-            .build().unwrap();
+            .build().expect("Consens Size buffer wasn't created");
 
-        let rand_buffer = Buffer::builder()
+        let rand1_buffer = Buffer::builder()
             .queue(self.queue.clone())
             .flags(MemFlags::new().read_write().copy_host_ptr())
-            .dims(rands.len())
-            .host_data(&rands)
-            .build().unwrap();
+            .dims(SpatialDims::One(rands1.len()))
+            .host_data(&rands1)
+            .build().expect("Random number 1 buffer wasn't created");
 
-        let result_center_buffer = Buffer::<Int2>::builder()
+        let rand2_buffer = Buffer::builder()
+            .queue(self.queue.clone())
+            .flags(MemFlags::new().read_write().copy_host_ptr())
+            .dims(SpatialDims::One(rands2.len()))
+            .host_data(&rands2)
+            .build().expect("Random number 2 buffer wasn't created");
+
+        let rand3_buffer = Buffer::builder()
+            .queue(self.queue.clone())
+            .flags(MemFlags::new().read_write().copy_host_ptr())
+            .dims(SpatialDims::One(rands3.len()))
+            .host_data(&rands3)
+            .build().expect("Random number 3 buffer wasn't created");
+
+        let result_cx_buffer = Buffer::builder()
             .queue(self.queue.clone())
             .flags(MemFlags::new().read_write().alloc_host_ptr())
-            .dims(num_contours)
-            .build().unwrap();
+            .dims(SpatialDims::One(num_contours as usize))
+            .build().expect("Cx buffer wasn't created");
 
-        let result_radius_buffer = Buffer::<Float>::builder()
+        let result_cy_buffer = Buffer::builder()
             .queue(self.queue.clone())
             .flags(MemFlags::new().read_write().alloc_host_ptr())
-            .dims(num_contours)
-            .build().unwrap();
+            .dims(SpatialDims::One(num_contours as usize))
+            .build().expect("Cy buffer wasn't created");
+
+        let result_radius_buffer = Buffer::builder()
+            .queue(self.queue.clone())
+            .flags(MemFlags::new().read_write().alloc_host_ptr())
+            .dims(SpatialDims::One(num_contours as usize))
+            .build().expect("Radius buffer wasn't created");
 
         let kernel = Kernel::new("ransac_kernel", &self.ellipse_detect).unwrap()
             .queue(self.queue.clone())
-            .gws(SpatialDims::One(num_contours as usize * self.params.num_iterations as usize))
-            .lws(SpatialDims::One(self.params.num_iterations as usize))
+            .gws([num_contours as usize * self.params.num_iterations as usize])
+            .lws([self.params.num_iterations as usize])
             .arg_buf(&consens_x_buffer)
             .arg_buf(&consens_y_buffer)
             .arg_buf(&consens_size_buffer)
-            .arg_buf(&result_center_buffer)
+            .arg_buf(&result_cx_buffer)
+            .arg_buf(&result_cy_buffer)
             .arg_buf(&result_radius_buffer)
-            .arg_buf(&rand_buffer)
+            .arg_buf(&rand1_buffer)
+            .arg_buf(&rand2_buffer)
+            .arg_buf(&rand3_buffer)
             .arg_loc::<Int>(self.params.num_iterations as usize * mem::size_of::<Int>())
             .arg_loc::<Int2>(self.params.num_iterations as usize * mem::size_of::<Int2>())
             .arg_loc::<Float>(self.params.num_iterations as usize * mem::size_of::<Float>())
-            .arg_scl(self.params.max_point_seperation)
-            .arg_scl(self.params.min_point_seperation)
-            .arg_scl(self.params.colinear_tolerance)
-            .arg_scl(self.params.radius_tolerance)
-            .arg_scl(self.params.point_threshold)
-            .arg_scl(self.params.num_iterations)
-            .arg_scl(max_width);
+            .arg_vec(Float2::new(self.params.min_point_seperation, self.params.max_point_seperation))
+            .arg_vec(Float2::new(self.params.colinear_tolerance, self.params.radius_tolerance))
+            .arg_vec(Int2::new(self.params.num_iterations, max_width));
 
-        kernel.enq().unwrap();
+        kernel.enq().expect("Kernel couldn't be started");
 
-        let mut result_center = vec![Int2::new(0,0); num_contours as usize]; 
-        let mut result_radius = vec![Float::new(0.0); num_contours as usize];
+        let mut result_cx = vec![0i32; num_contours as usize]; 
+        let mut result_cy = vec![0i32; num_contours as usize]; 
+        let mut result_radius = vec![0f32; num_contours as usize];
 
-        result_center_buffer.read(&mut result_center).enq().unwrap();
+        result_cx_buffer.read(&mut result_cx).enq().unwrap();
+        result_cy_buffer.read(&mut result_cy).enq().unwrap();
         result_radius_buffer.read(&mut result_radius).enq().unwrap();
 
         let mut result = Vec::with_capacity(result_radius.len());
-        for i in 0..result.len() {
-            let center = result_center[i].to_vec();
-            let radius = result_radius[i].to_vec()[0];
-            result.push((center[0] as usize, center[1] as usize, radius));
+        for i in 0..result_radius.len() {
+            let cx = result_cx[i];
+            let cy = result_cy[i];
+            let radius = result_radius[i];
+            result.push((cx as usize, cy as usize, radius));
         }
+
         result
     }
 
     pub fn execute_ellipse_fit(&self, contours: &[Contour]) -> Option<Vec<RansacResult>> {
-        if contours.len() > 0 && contours.len() < 200 { //Fitting over 200 contours is too expensive
+        if contours.len() > 2 && contours.len() < 200 { //Fitting over 200 contours is too expensive
             let mut max_len = 0;
             for c in contours {
                 let len = c.points.get_vertices().len();
@@ -143,8 +170,8 @@ impl EllipseRANSAC {
             }
 
             let dim = contours.len() * max_len;
-            let mut consens_x = vec![0i32; contours.len() * max_len];
-            let mut consens_y = vec![0i32; contours.len() * max_len];
+            let mut consens_x = vec![0i32; dim];
+            let mut consens_y = vec![0i32; dim];
             let mut consens_size = vec![0i32; contours.len()];
 
             for y in 0..contours.len() {
@@ -161,6 +188,6 @@ impl EllipseRANSAC {
             return Some(self.launch_kernel(consens_x, consens_y, consens_size, max_len as i32, contours.len() as i32));
         }
 
-         None
+        None
     }
 }

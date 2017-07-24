@@ -137,8 +137,7 @@ fn main() {
                 piston_window::image(t, c.transform, g);
                 if let Some(ref ellipses_found) = ellipses {
                     for e in ellipses_found {
-                        println!("Found Ellipse c: {},{} | radius: {}", e.0, e.1, e.2);
-                        if e.2 > 0f32 {
+                        if e.2 > 0f32 && e.0 > 0 && e.0 < dim.0 as usize && e.1 > 0 && e.1 < dim.1 as usize {
                             let pos = [ e.0 as f64 - e.2 as f64, e.1 as f64 - e.2 as f64, 
                                 e.2 as f64, e.2 as f64];
                             Ellipse::new_border([1.0, 0.0, 0.0, 1.0], 1f64)
