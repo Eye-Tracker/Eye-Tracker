@@ -160,7 +160,7 @@ impl EllipseRANSAC {
     }
 
     pub fn execute_ellipse_fit(&self, contours: &[Contour]) -> Option<Vec<RansacResult>> {
-        if contours.len() > 2 && contours.len() < 200 { //Fitting over 200 contours is too expensive
+        if contours.len() > 2 && contours.len() < 2000 { //Fitting over 2000 contours is too expensive
             let mut max_len = 0;
             for c in contours {
                 let len = c.points.get_vertices().len();
