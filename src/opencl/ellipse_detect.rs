@@ -45,7 +45,7 @@ impl EllipseRANSAC {
         EllipseRANSAC { ellipse_detect: ellipse_detect, queue: queue, params: params }
     }
 
-    fn launch_kernel(&self, consens_x: &[i32], consens_y: &[i32], consens_size: &[i32], max_width: i32, num_contours: i32) -> Vec<RansacResult> {
+    fn launch_kernel(&self, consens_x: Vec<i32>, consens_y: Vec<i32>, consens_size: Vec<i32>, max_width: i32, num_contours: i32) -> Vec<RansacResult> {
         let mut rands = vec![Int3::new(0,0,0); self.params.num_iterations as usize * num_contours as usize * 10usize];
         //Generate random numbers on CPU
         let between = Range::new(0, max_width);
@@ -56,32 +56,31 @@ impl EllipseRANSAC {
 
         let consens_x_buffer = Buffer::builder()
             .queue(self.queue.clone())
-            .flags(MemFlags::new().read_write() | MemFlags::new().copy_host_ptr())
+            .flags(MemFlags::new().read_write().copy_host_ptr())
             .dims(consens_x.len())
-            .host_data(consens_x)
+            .host_data(&consens_x)
             .build().unwrap();
         
         let consens_y_buffer = Buffer::builder()
             .queue(self.queue.clone())
-            .flags(MemFlags::new().read_write() | MemFlags::new().copy_host_ptr())
+            .flags(MemFlags::new().read_write().copy_host_ptr())
             .dims(consens_y.len())
-            .host_data(consens_y)
+            .host_data(&consens_y)
             .build().unwrap();
         
         let consens_size_buffer = Buffer::builder()
             .queue(self.queue.clone())
-            .flags(MemFlags::new().read_write() | MemFlags::new().copy_host_ptr())
+            .flags(MemFlags::new().read_write().copy_host_ptr())
             .dims(consens_size.len())
-            .host_data(consens_size)
+            .host_data(&consens_size)
             .build().unwrap();
 
         let rand_buffer = Buffer::builder()
             .queue(self.queue.clone())
-            .flags(MemFlags::new().read_only() | MemFlags::new().copy_host_ptr() | MemFlags::new().host_write_only())
+            .flags(MemFlags::new().read_write().copy_host_ptr())
             .dims(rands.len())
             .host_data(&rands)
             .build().unwrap();
-
 
         let result_center_buffer = Buffer::<Int2>::builder()
             .queue(self.queue.clone())
@@ -106,7 +105,7 @@ impl EllipseRANSAC {
             .arg_buf(&result_radius_buffer)
             .arg_buf(&rand_buffer)
             .arg_loc::<Int>(self.params.num_iterations as usize * mem::size_of::<Int>())
-            .arg_loc::<Int2>(self.params.num_iterations as usize * mem::size_of::<Int2>() * 2usize)
+            .arg_loc::<Int2>(self.params.num_iterations as usize * mem::size_of::<Int2>())
             .arg_loc::<Float>(self.params.num_iterations as usize * mem::size_of::<Float>())
             .arg_scl(self.params.max_point_seperation)
             .arg_scl(self.params.min_point_seperation)
@@ -148,18 +147,18 @@ impl EllipseRANSAC {
             let mut consens_y = vec![0i32; contours.len() * max_len];
             let mut consens_size = vec![0i32; contours.len()];
 
-            for i in 0..contours.len() {
-                let points = contours[i].points.get_vertices();
+            for y in 0..contours.len() {
+                let points = contours[y].points.get_vertices();
                 let len = points.len();
-                for j in 0..len {
-                    consens_x[i * max_len + j] = points[j].x as i32;
-                    consens_y[i * max_len + j] = points[j].y as i32;
+                for x in 0..len {
+                    consens_x[y * max_len + x] = points[x].x as i32;
+                    consens_y[y * max_len + x] = points[x].y as i32;
                 }
 
-                consens_size[i] = len as i32;
+                consens_size[y] = len as i32;
             }
 
-            return Some(self.launch_kernel(&consens_x, &consens_y, &consens_size, max_len as i32, contours.len() as i32));
+            return Some(self.launch_kernel(consens_x, consens_y, consens_size, max_len as i32, contours.len() as i32));
         }
 
          None
