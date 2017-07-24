@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use contour_detection::contour::Contour;
 use contour_detection::shape::{Polygon, Points, PointList};
 use rand;
+use rand::distributions::{IndependentSample, Range};
 
 #[macro_use]
 use opencl;
@@ -47,9 +48,10 @@ impl EllipseRANSAC {
     fn launch_kernel(&self, consens_x: &[i32], consens_y: &[i32], consens_size: &[i32], max_width: i32, num_contours: i32) -> Vec<RansacResult> {
         let mut rands = vec![Int3::new(0,0,0); self.params.num_iterations as usize * num_contours as usize * 10usize];
         //Generate random numbers on CPU
+        let between = Range::new(0, max_width);
+        let mut rng = rand::thread_rng();
         for i in 0..rands.len() {
-            let rand = rand::random::<(u32, u32, u32)>();
-            rands[i] = Int3::new(rand.0 as i32, rand.1 as i32, rand.2 as i32);
+            rands[i] = Int3::new(between.ind_sample(&mut rng), between.ind_sample(&mut rng), between.ind_sample(&mut rng));
         }
 
         let consens_x_buffer = Buffer::builder()
