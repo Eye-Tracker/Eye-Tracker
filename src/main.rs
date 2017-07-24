@@ -5,6 +5,7 @@ extern crate ocl;
 extern crate find_folder;
 extern crate time;
 extern crate texture;
+extern crate piston;
 extern crate piston_window;
 extern crate fps_counter;
 extern crate indextree;
@@ -36,7 +37,9 @@ use streamer::webcam_stream::WebcamStream;
 #[cfg(feature = "use_dummy_streamer")]
 use streamer::dummy_streamer::DummyStream;
 use streamer::Stream;
+
 use piston_window::*;
+use piston::input::*;
 
 #[cfg(feature = "camera_support")]
 fn setup_streamer() -> (Box<Iterator<Item = image::RgbImage>>, (u32, u32)) {
@@ -85,31 +88,35 @@ fn main() {
     });
 
     let contour_finder = ContourProcessor;
+    let mut debug_view = false;
     while let Some(e) = window.next() {
         let mut fps = 0;
         let unlocked = app.lock().unwrap();
         let (low, high, size) = (unlocked.low_threshold, unlocked.high_threshold, unlocked.size_filter);
         let mut ellipses = None;
+
+        if let Some(Button::Keyboard(key)) = e.press_args() {
+            if key == Key::D {
+                debug_view = !debug_view;
+            }
+        }
+
         if let Some(frame) = iterator.next() {
             fps = fpsc.tick();
 
             let grayscaled: image::GrayImage = frame.convert();
             let result = canny_edge.execute_edge_detection(grayscaled.into_raw(), low, high);
-
             let gray_result = image::GrayImage::from_raw(dim.0, dim.1, result).expect("ImageBuffer couldn't be created");
-            //let gray_result: image::GrayImage = image_loader::open_image("test_circles_border.jpg").to_luma();
-            
+ 
             let contours = contour_finder.find_contours(&gray_result, size);
 
             ellipses = ellipse_fit.execute_ellipse_fit(&contours);
-
-            if let Some(ref ellipse_vec) = ellipses {
-                for e in ellipse_vec {
-                    println!("Found Ellipse c: {},{} | radius: {}", e.0, e.1, e.2);
-                }
-            }
             
-            let mut rgba: image::RgbaImage = frame.convert();
+            let mut rgba: image::RgbaImage = if debug_view {
+                gray_result.convert()
+            } else {
+                frame.convert()
+            };
 
             for c in contours { 
                 for p in c.points.get_vertices() { 
@@ -130,7 +137,7 @@ fn main() {
                 piston_window::image(t, c.transform, g);
                 if let Some(ref ellipses_found) = ellipses {
                     for e in ellipses_found {
-                        println!("Ellipse is {:?}", e);
+                        println!("Found Ellipse c: {},{} | radius: {}", e.0, e.1, e.2);
                         if e.2 > 0f32 {
                             let pos = [ e.0 as f64 - e.2 as f64, e.1 as f64 - e.2 as f64, 
                                 e.2 as f64, e.2 as f64];
