@@ -26,6 +26,8 @@ __kernel void gaussian_kernel(__global uchar *data,
         }
 
         out[yIndex * width + xIndex] = min(255,max(0,sum));
+    } else {
+         out[yIndex * width + xIndex] = 0;
     }
 
     return;
