@@ -1,0 +1,8 @@
+Scripts to stream Video from Pi Camera to Remote Client using UDP and TCP. The streamed Video will be stored in a File. 
+
+Usage Server:
+./<Scriptname>_udp/tcp <IP>
+Usage Client:
+./<Scriptname>_udp/tcp <IP>
+
+The Video will be stored in 'video.h264' File. To watch the Video using any standard Video Player convert the File into .mp4 Format before. Therefore use the 'convert_H264_to_MP4' Shell Script (Script uses MP4Box for conversion, on debian systems you can install it via 'sudo apt-get install gpac').  

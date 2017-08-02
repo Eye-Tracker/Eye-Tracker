@@ -1,0 +1,8 @@
+Scripts to stream Video from Pi Camera to Remote Client using UDP and TCP. The streamed Video will be shown in a Video Player. This Scripts are for Demonstration Purposes. 
+
+Usage Server:
+./<Scriptname>_udp/tcp <IP>
+Usage Client:
+./<Scriptname>_udp/tcp <IP>
+
+To show the Stream MPlayer is used by the Scripts. MPlayer can be installed on debian Machines using 'sudo apt-get install mplayer mplayer-gui'.

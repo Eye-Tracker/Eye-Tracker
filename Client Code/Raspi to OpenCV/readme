@@ -1,0 +1,9 @@
+Basic C++ Framework for capturing a raspivid video stream from Raspberry Pi directly into OpenCV. OpenCV will use FFMPEG for decoding the H.264 Stream so make sure that OpenCV has been built with FFMPEG support. The Framework so far only supports UDP Packages, therefore use with Raspivid-Scripts on Pi Zero with udp in name (for Pi Zero as server). 
+
+Usage Client:
+- Build source code using cmake and make
+- Run it with ./raspivid_client_framework
+- Run client programm before the server!
+
+Usage Pi:
+On Pi run the script for starting the raspivid udp stream server.

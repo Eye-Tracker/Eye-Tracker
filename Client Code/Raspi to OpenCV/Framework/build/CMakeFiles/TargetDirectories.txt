@@ -1,0 +1,3 @@
+/home/claudio/Projects/Eye Tracker/Repo/Eye-Tracker/Raspi to OpenCV/Framework/build/CMakeFiles/edit_cache.dir
+/home/claudio/Projects/Eye Tracker/Repo/Eye-Tracker/Raspi to OpenCV/Framework/build/CMakeFiles/rebuild_cache.dir
+/home/claudio/Projects/Eye Tracker/Repo/Eye-Tracker/Raspi to OpenCV/Framework/build/CMakeFiles/raspivid_client_framework.dir
