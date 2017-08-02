@@ -1,7 +1,0 @@
-Several Scripts to stream Pi Camera to remote client.
-Usage Server:
-./<Scriptname> <Port>
-Usage Clien:
-./<Scriptname> <IP> <Port>
-
-- The serversid scripts are not yet uploaded. They are only available on Pi Zero right now.

@@ -1,6 +1,0 @@
-With this framework we are able to grab images from camera, process them using OpenCV (or similar libraries) and finally push them to a GStreamer pipeline. Right now this framework is made for usage at serverside, but it should be easily possible to adapt this framework for use at clientside.
-
-- Read more about GStreamer here: https://gstreamer.freedesktop.org/documentation/
-
-NOTE:
-So far only H264 compression is implemented by the framework. MotionJPEG is still under construction.
